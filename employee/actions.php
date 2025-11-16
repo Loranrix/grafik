@@ -35,6 +35,7 @@ $employee_name = $_SESSION['employee_name'];
         <div class="action-buttons">
             <a href="punch.php?type=in" class="btn btn-in">Ierašanās</a>
             <a href="punch.php?type=out" class="btn btn-out">Aiziešana</a>
+            <a href="consumption.php" class="btn btn-consumption">Patēriņš</a>
             <a href="dashboard.php" class="btn btn-dashboard">Mana statistika</a>
         </div>
         

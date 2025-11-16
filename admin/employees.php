@@ -21,6 +21,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'create') {
         $first_name = trim($_POST['first_name']);
         $last_name = trim($_POST['last_name']);
+        $phone = trim($_POST['phone']);
         $pin = trim($_POST['pin']);
         
         if (strlen($pin) !== 4 || !ctype_digit($pin)) {
@@ -28,13 +29,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } elseif ($employeeModel->pinExists($pin)) {
             $error = 'Ce PIN est déjà utilisé';
         } else {
-            $employeeModel->create($first_name, $last_name, $pin);
+            $employeeModel->create($first_name, $last_name, $phone, $pin);
             $message = 'Employé créé avec succès';
         }
     } elseif ($action === 'update') {
         $id = intval($_POST['id']);
         $first_name = trim($_POST['first_name']);
         $last_name = trim($_POST['last_name']);
+        $phone = trim($_POST['phone']);
         $pin = trim($_POST['pin']);
         
         if (strlen($pin) !== 4 || !ctype_digit($pin)) {
@@ -42,7 +44,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } elseif ($employeeModel->pinExists($pin, $id)) {
             $error = 'Ce PIN est déjà utilisé';
         } else {
-            $employeeModel->update($id, $first_name, $last_name, $pin);
+            $employeeModel->update($id, $first_name, $last_name, $phone, $pin);
             $message = 'Employé modifié avec succès';
         }
     } elseif ($action === 'toggle_active') {
@@ -76,6 +78,7 @@ $employees = $employeeModel->getAll(false);
                 <tr>
                     <th>Nom</th>
                     <th>Prénom</th>
+                    <th>Téléphone</th>
                     <th>PIN</th>
                     <th>QR Code</th>
                     <th>Statut</th>
@@ -87,6 +90,7 @@ $employees = $employeeModel->getAll(false);
                 <tr>
                     <td><?= htmlspecialchars($emp['last_name']) ?></td>
                     <td><?= htmlspecialchars($emp['first_name']) ?></td>
+                    <td><?= htmlspecialchars($emp['phone'] ?? '-') ?></td>
                     <td><code><?= htmlspecialchars($emp['pin']) ?></code></td>
                     <td>
                         <button class="btn btn-secondary btn-sm" onclick="showQR('<?= $emp['qr_code'] ?>', '<?= htmlspecialchars($emp['first_name'] . ' ' . $emp['last_name']) ?>')">
@@ -142,6 +146,11 @@ $employees = $employeeModel->getAll(false);
             </div>
             
             <div class="form-group">
+                <label for="phone">Téléphone</label>
+                <input type="tel" id="phone" name="phone" placeholder="+371 12345678">
+            </div>
+            
+            <div class="form-group">
                 <label for="pin">PIN (4 chiffres)</label>
                 <input type="text" id="pin" name="pin" pattern="[0-9]{4}" maxlength="4" required>
             </div>
@@ -175,6 +184,7 @@ function openCreateModal() {
     document.getElementById('employeeId').value = '';
     document.getElementById('first_name').value = '';
     document.getElementById('last_name').value = '';
+    document.getElementById('phone').value = '';
     document.getElementById('pin').value = '';
     document.getElementById('employeeModal').classList.add('active');
 }
@@ -185,6 +195,7 @@ function editEmployee(emp) {
     document.getElementById('employeeId').value = emp.id;
     document.getElementById('first_name').value = emp.first_name;
     document.getElementById('last_name').value = emp.last_name;
+    document.getElementById('phone').value = emp.phone || '';
     document.getElementById('pin').value = emp.pin;
     document.getElementById('employeeModal').classList.add('active');
 }

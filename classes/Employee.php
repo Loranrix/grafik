@@ -56,13 +56,13 @@ class Employee {
     /**
      * Créer un nouvel employé
      */
-    public function create($first_name, $last_name, $pin) {
+    public function create($first_name, $last_name, $phone, $pin) {
         // Générer un QR code unique
         $qr_code = $this->generateUniqueQr();
         
         $this->db->query(
-            "INSERT INTO employees (first_name, last_name, pin, qr_code) VALUES (?, ?, ?, ?)",
-            [$first_name, $last_name, $pin, $qr_code]
+            "INSERT INTO employees (first_name, last_name, phone, pin, qr_code) VALUES (?, ?, ?, ?, ?)",
+            [$first_name, $last_name, $phone, $pin, $qr_code]
         );
         
         return $this->db->lastInsertId();
@@ -71,16 +71,16 @@ class Employee {
     /**
      * Mettre à jour un employé
      */
-    public function update($id, $first_name, $last_name, $pin = null) {
+    public function update($id, $first_name, $last_name, $phone, $pin = null) {
         if ($pin !== null) {
             $this->db->query(
-                "UPDATE employees SET first_name = ?, last_name = ?, pin = ? WHERE id = ?",
-                [$first_name, $last_name, $pin, $id]
+                "UPDATE employees SET first_name = ?, last_name = ?, phone = ?, pin = ? WHERE id = ?",
+                [$first_name, $last_name, $phone, $pin, $id]
             );
         } else {
             $this->db->query(
-                "UPDATE employees SET first_name = ?, last_name = ? WHERE id = ?",
-                [$first_name, $last_name, $id]
+                "UPDATE employees SET first_name = ?, last_name = ?, phone = ? WHERE id = ?",
+                [$first_name, $last_name, $phone, $id]
             );
         }
     }

@@ -25,3 +25,8 @@ desktop.ini
 # config.php est inclus car déjà commité
 # mais attention aux modifications futures
 
+# Firebase
+firebase-config.json
+vendor/
+composer.lock
+

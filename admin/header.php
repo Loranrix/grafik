@@ -30,20 +30,26 @@ $current_page = basename($_SERVER['PHP_SELF'], '.php');
         </div>
     </header>
     
-    <nav class="nav-menu">
-        <div class="nav-content">
-            <a href="dashboard.php" class="nav-item <?= $current_page === 'dashboard' ? 'active' : '' ?>">
-                Tableau de bord
-            </a>
-            <a href="employees.php" class="nav-item <?= $current_page === 'employees' ? 'active' : '' ?>">
-                Employés
-            </a>
-            <a href="planning.php" class="nav-item <?= $current_page === 'planning' ? 'active' : '' ?>">
-                Planning
-            </a>
-            <a href="punches.php" class="nav-item <?= $current_page === 'punches' ? 'active' : '' ?>">
-                Pointages
-            </a>
-        </div>
-    </nav>
+        <nav class="nav-menu">
+            <div class="nav-content">
+                <a href="dashboard.php" class="nav-item <?= $current_page === 'dashboard' ? 'active' : '' ?>">
+                    Tableau de bord
+                </a>
+                <a href="employees.php" class="nav-item <?= $current_page === 'employees' ? 'active' : '' ?>">
+                    Employés
+                </a>
+                <a href="qr-codes.php" class="nav-item <?= $current_page === 'qr-codes' ? 'active' : '' ?>">
+                    QR Codes
+                </a>
+                <a href="planning.php" class="nav-item <?= $current_page === 'planning' ? 'active' : '' ?>">
+                    Planning
+                </a>
+                <a href="punches.php" class="nav-item <?= $current_page === 'punches' ? 'active' : '' ?>">
+                    Pointages
+                </a>
+                <a href="firebase-test.php" class="nav-item <?= $current_page === 'firebase-test' ? 'active' : '' ?>" style="color: #f39c12;">
+                    🔥 Firebase
+                </a>
+            </div>
+        </nav>
 
