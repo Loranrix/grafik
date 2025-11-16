@@ -47,6 +47,15 @@ $current_page = basename($_SERVER['PHP_SELF'], '.php');
                 <a href="punches.php" class="nav-item <?= $current_page === 'punches' ? 'active' : '' ?>">
                     Pointages
                 </a>
+                <a href="security-settings.php" class="nav-item <?= $current_page === 'security-settings' ? 'active' : '' ?>">
+                    🔒 Sécurité
+                </a>
+                <a href="logs.php" class="nav-item <?= $current_page === 'logs' ? 'active' : '' ?>">
+                    📋 Logs
+                </a>
+                <a href="export.php" class="nav-item <?= $current_page === 'export' ? 'active' : '' ?>">
+                    📥 Export
+                </a>
                 <a href="firebase-test.php" class="nav-item <?= $current_page === 'firebase-test' ? 'active' : '' ?>" style="color: #f39c12;">
                     🔥 Firebase
                 </a>
