@@ -1,0 +1,298 @@
+/**
+ * GRAFIK - CSS pour interface employé (mobile-first)
+ */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.container {
+    background: white;
+    border-radius: 20px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    width: 100%;
+    max-width: 400px;
+    padding: 30px;
+    text-align: center;
+}
+
+h1 {
+    color: #667eea;
+    margin-bottom: 30px;
+    font-size: 28px;
+}
+
+.logo {
+    font-size: 48px;
+    margin-bottom: 20px;
+}
+
+/* PIN Keypad */
+.pin-display {
+    background: #f7f7f7;
+    border: 2px solid #ddd;
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 30px;
+    font-size: 32px;
+    letter-spacing: 10px;
+    min-height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.keypad {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.key {
+    background: #667eea;
+    color: white;
+    border: none;
+    border-radius: 15px;
+    padding: 25px;
+    font-size: 24px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 4px 10px rgba(102, 126, 234, 0.3);
+}
+
+.key:active {
+    transform: scale(0.95);
+    box-shadow: 0 2px 5px rgba(102, 126, 234, 0.3);
+}
+
+.key:hover {
+    background: #5a6fd8;
+}
+
+.key.cancel {
+    background: #e74c3c;
+    grid-column: 1;
+}
+
+.key.cancel:hover {
+    background: #c0392b;
+}
+
+.key.zero {
+    grid-column: 2;
+}
+
+.key.ok {
+    background: #27ae60;
+    grid-column: 3;
+}
+
+.key.ok:hover {
+    background: #229954;
+}
+
+/* Action Buttons */
+.action-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.btn {
+    padding: 20px;
+    font-size: 20px;
+    font-weight: bold;
+    border: none;
+    border-radius: 15px;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: white;
+    text-decoration: none;
+    display: block;
+}
+
+.btn-in {
+    background: #27ae60;
+    box-shadow: 0 4px 10px rgba(39, 174, 96, 0.3);
+}
+
+.btn-in:hover {
+    background: #229954;
+}
+
+.btn-out {
+    background: #e74c3c;
+    box-shadow: 0 4px 10px rgba(231, 76, 60, 0.3);
+}
+
+.btn-out:hover {
+    background: #c0392b;
+}
+
+.btn-dashboard {
+    background: #3498db;
+    box-shadow: 0 4px 10px rgba(52, 152, 219, 0.3);
+}
+
+.btn-dashboard:hover {
+    background: #2980b9;
+}
+
+.btn:active {
+    transform: scale(0.98);
+}
+
+/* Success/Error Messages */
+.message {
+    padding: 15px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+    font-weight: bold;
+}
+
+.message.success {
+    background: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.message.error {
+    background: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+/* Punch Info */
+.punch-info {
+    background: #f7f7f7;
+    border-radius: 10px;
+    padding: 20px;
+    margin: 20px 0;
+    text-align: left;
+}
+
+.punch-info .label {
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 5px;
+}
+
+.punch-info .value {
+    font-size: 24px;
+    font-weight: bold;
+    color: #333;
+    margin-bottom: 15px;
+}
+
+/* Dashboard */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 15px;
+    margin: 20px 0;
+}
+
+.stat-card {
+    background: #f7f7f7;
+    border-radius: 10px;
+    padding: 20px;
+    text-align: center;
+}
+
+.stat-card .label {
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 10px;
+}
+
+.stat-card .value {
+    font-size: 32px;
+    font-weight: bold;
+    color: #667eea;
+}
+
+.stat-card .unit {
+    font-size: 14px;
+    color: #999;
+}
+
+/* Planning Monthly */
+.calendar {
+    margin: 20px 0;
+}
+
+.calendar-header {
+    font-size: 18px;
+    font-weight: bold;
+    margin-bottom: 15px;
+    color: #333;
+}
+
+.calendar-day {
+    background: #f7f7f7;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 10px;
+    text-align: left;
+}
+
+.calendar-day.today {
+    background: #e8eaf6;
+    border: 2px solid #667eea;
+}
+
+.calendar-day .date {
+    font-weight: bold;
+    color: #667eea;
+    margin-bottom: 5px;
+}
+
+.calendar-day .time {
+    color: #666;
+    font-size: 14px;
+}
+
+/* Back Link */
+.back-link {
+    display: inline-block;
+    margin-top: 20px;
+    color: #667eea;
+    text-decoration: none;
+    font-weight: bold;
+}
+
+.back-link:hover {
+    text-decoration: underline;
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+    .container {
+        padding: 20px;
+    }
+    
+    h1 {
+        font-size: 24px;
+    }
+    
+    .key {
+        padding: 20px;
+        font-size: 20px;
+    }
+}
+

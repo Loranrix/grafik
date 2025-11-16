@@ -1,0 +1,291 @@
+📄 Prompt.txt (VERSION FINALE POUR CURSOR — STRICT, NON-INTERACTIF, 100% AUTOMATIQUE)
+
+IMPORTANT — À LIRE AVANT TOUTE ACTION :
+Tu dois suivre exactement ces instructions.
+Aucune commande interactive. Aucun blocage. Aucune question.
+Tu dois tout faire sans intervention humaine.
+
+🔐 1 — RÈGLES GÉNÉRALES OBLIGATOIRES
+
+INTERDICTION ABSOLUE de :
+
+toute commande interactive (pas de pause, pas de "Press Enter", pas de prompts)
+
+python ou n’importe quelle commande Python
+
+plink sans -batch
+
+git commit hors séquences contrôlées
+
+commandes longues ou boucles sur des erreurs
+
+pm2 si l’app n’est PAS Node (ce projet sera en PHP)
+
+DOIS TOUJOURS :
+
+utiliser plink -batch pour toute commande SSH
+
+vérifier immédiatement le résultat (echo $?, ls, curl, etc.)
+
+annuler l’action si un risque de blocage apparaît
+
+logguer dans la console ce que tu fais pour suivi
+
+Ne jamais attendre une entrée utilisateur.
+Aucune commande interactive autorisée.
+
+
+INTERDICTION absolue d'aller dans un autre dossier que SITES/grafik
+
+
+📁 2 — FICHIERS À LIRE AVANT TOUT
+
+Avant toute action, tu dois OBLIGATOIREMENT ouvrir et lire :
+
+/TOP/Prompt.txt (ce fichier)
+
+/TOP/CONNEXION-VPS-CIAO-LV.MD
+
+/TOP/CONNEXION-VPS-REUSSIE-2025-11-12.MD
+
+Tu adapteras les chemins, le domaine et les ports selon les instructions qu’ils contiennent.
+La hostkey indiquée dans ces fichiers est valide et doit être respectée.
+
+🌐 3 — OBJECTIF DU PROJET
+
+Tu dois créer une application complète PHP + MariaDB, sans Node, sans Next, sans PM2.
+
+L’application s’appelle : grafik
+
+Elle sera déployée sur un VPS dans ce dossier :
+
+/home/napopizza.lv/public_html/grafik
+
+Accès DB :
+
+DB name : napo_grafik
+
+DB user : napo_admin
+
+Password : Superman13**
+
+📌 4 — PARTIE 1 (TO DO IMMÉDIATEMENT) — VERSION MINIMALE OPÉRATIONNELLE
+
+Créer immédiatement :
+
+✔️ Côté EMPLOYÉ (mobile-first)
+
+Page QR → ouvre la page employé
+
+Clavier PIN comme un clavier téléphone (gros boutons 0–9 + CANCEL + OK)
+
+Si PIN valide : écran avec 3 boutons :
+
+“Arrivée”
+
+“Départ”
+
+“Dashboard”
+
+Quand “Arrivée” → enregistrer et affiche la date et  l’heure (réelle + heure prévue si planning existe)
+
+Quand “Départ” → enregistrer l’heure et affiche la date et  l’heure
+
+Dashboard employé :
+
+heures du jour
+
+heures d’hier
+
+heures de la semaine
+
+heures du mois 
+
+Planning mensuel
+
+Interface en letton uniquement côté employé
+
+✔️ Côté ADMIN (desktop-first + responsive)
+
+Connexion admin (user = loran + mot de passe = superman13*)
+
+Gestion employés :
+
+nom, prénom, PIN, QR unique (généré automatiquement)
+
+Planning :
+
+calendrier mensuel
+
+pour chaque employé : heures prévues (début/fin)
+
+édition du planning
+
+Pointage :
+
+heures d’arrivée/départ
+
+calcul auto heures travaillées
+
+possibilité d’ajouter manuellement un pointage oublié
+
+Interface admin en français
+
+✔️ Contraintes techniques Partie 1
+
+Full PHP
+
+Full MariaDB
+
+Frontend en HTML/CSS + JS minimal
+
+Pas d’autres dépendances
+
+Code organisé, clair, commenté
+
+Responsive mobile (employés) + desktop (admin)
+
+🔒 5 — PARTIE 2 (À FAIRE PLUS TARD — NE PAS FAIRE MAINTENANT)
+
+Tu ne fais PAS cette partie tant que l’ordre n’est pas donné.
+
+Elle contiendra plus tard :
+
+sécurité par device unique
+
+sécurité par GPS (rayon 50 m)
+
+restrictions horaires
+
+logs avancés
+
+audits
+
+géolocalisation par IP
+
+QR codes dynamiques
+
+tokens anti-fraude
+
+système multi-agences
+
+purge automatique DB
+
+sauvegardes automatiques
+
+Tu ignores complètement cette partie pour l’instant.
+
+🧱 6 — STRUCTURE À CRÉER AUTOMATIQUEMENT
+
+Dans le VPS :
+
+grafik/
+   index.php
+   /admin
+   /employee
+   /includes
+   /classes
+   /public
+   /css
+   /js
+   /vendor (si besoin)
+   .htaccess
+
+
+Créer aussi le schéma SQL complet :
+
+employees
+shifts
+punches
+admins
+settings
+
+🌍 7 — DÉPLOIEMENT AUTOMATISÉ (SANS AUCUNE INTERVENTION HUMAINE)
+
+Cursor doit :
+
+Se connecter automatiquement au VPS via PLINK -batch
+
+Créer le dossier /public_html/grafik
+
+Déployer tous les fichiers PHP
+
+Créer/mettre à jour la base MariaDB
+
+Vérifier le fonctionnement (curl local et externe)
+
+Créer un sous-domaine si nécessaire (grafik.napopizza.lv)
+
+Créer un vHost isolé
+
+Ne PAS toucher aux autres vHosts existants
+
+Configurer HTTPS (si Let’s Encrypt accessible sans interaction)
+
+Vérifier :
+
+/admin fonctionne
+
+/employee fonctionne
+
+QR code fonctionne
+
+entrée PIN fonctionne
+
+enregistrement arrivée/départ OK
+
+TOUT doit être fait par Cursor sans jamais me demander quoi que ce soit.
+
+🚫 8 — COMMANDES ABSOLUMENT INTERDITES
+
+python
+
+pip
+
+npm, node, npx
+
+pm2
+
+apt install SANS -y
+
+git commit hors bloc
+
+toute commande nécessitant ENTER
+
+toute commande en boucle
+
+toute commande qui peut geler la session
+
+🟢 9 — COMMANDES AUTORISÉES
+
+plink -batch …
+
+mysql avec mot de passe
+
+ls, cat, cp, mv, rm -f, mkdir -p
+
+curl (simple, sans boucle)
+
+git clone, git pull
+
+nginx -t et systemctl reload nginx (ou liteSpeed équivalent)
+
+🧪 10 — TESTS À EFFECTUER AUTOMATIQUEMENT
+
+Cursor doit tester automatiquement :
+
+curl http://127.0.0.1/grafik/admin/
+
+curl http://127.0.0.1/grafik/employee/
+
+Test de connexion DB via script PHP dédié
+
+Test de génération QR
+
+Test arrivée/départ (script test)
+
+Si un test échoue → afficher l’erreur, corriger, retester.
+
+FIN DU PROMPT.TXT
+
+(Tu dois suivre exactement ce fichier avant toute action.)

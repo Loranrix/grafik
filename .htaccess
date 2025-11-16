@@ -1,0 +1,28 @@
+# GRAFIK - Configuration Apache
+RewriteEngine On
+RewriteBase /grafik/
+
+# Force HTTPS (si disponible)
+# RewriteCond %{HTTPS} off
+# RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+# Empêcher l'accès direct aux fichiers de classe et includes
+RewriteRule ^(includes|classes)/.*$ - [F,L]
+
+# Gestion des URLs propres
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^([^/]+)/$ $1/index.php [L]
+
+# Protection des fichiers sensibles
+<FilesMatch "\.(ini|log|sql|md)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Configuration PHP
+php_value upload_max_filesize 10M
+php_value post_max_size 10M
+php_value max_execution_time 60
+php_value date.timezone "Europe/Riga"
+
