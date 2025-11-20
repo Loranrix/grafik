@@ -10,6 +10,9 @@ if (!Admin::isLoggedIn()) {
 }
 
 $current_page = basename($_SERVER['PHP_SELF'], '.php');
+
+// Charger Message pour le compteur de messages non lus
+require_once __DIR__ . '/../classes/Message.php';
 ?>
 <!DOCTYPE html>
 <html lang="fr">
@@ -33,19 +36,22 @@ $current_page = basename($_SERVER['PHP_SELF'], '.php');
         <nav class="nav-menu">
             <div class="nav-content">
                 <a href="dashboard.php" class="nav-item <?= $current_page === 'dashboard' ? 'active' : '' ?>">
-                    Tableau de bord
+                    📊 Tableau de bord
                 </a>
                 <a href="employees.php" class="nav-item <?= $current_page === 'employees' ? 'active' : '' ?>">
-                    Employés
+                    👥 Employés
                 </a>
                 <a href="qr-codes.php" class="nav-item <?= $current_page === 'qr-codes' ? 'active' : '' ?>">
-                    QR Codes
+                    🔲 QR Code
                 </a>
                 <a href="planning.php" class="nav-item <?= $current_page === 'planning' ? 'active' : '' ?>">
-                    Planning
+                    📅 Planning
                 </a>
                 <a href="punches.php" class="nav-item <?= $current_page === 'punches' ? 'active' : '' ?>">
-                    Pointages
+                    ⏱️ Pointages
+                </a>
+                <a href="consumption.php" class="nav-item <?= $current_page === 'consumption' ? 'active' : '' ?>">
+                    🍕 Consommations
                 </a>
                 <a href="security-settings.php" class="nav-item <?= $current_page === 'security-settings' ? 'active' : '' ?>">
                     🔒 Sécurité
@@ -55,6 +61,22 @@ $current_page = basename($_SERVER['PHP_SELF'], '.php');
                 </a>
                 <a href="export.php" class="nav-item <?= $current_page === 'export' ? 'active' : '' ?>">
                     📥 Export
+                </a>
+                <a href="messages.php" class="nav-item <?= $current_page === 'messages' ? 'active' : '' ?>">
+                    💬 Messages
+                    <?php
+                    if ($current_page !== 'messages') {
+                        try {
+                            $messageModel = new Message();
+                            $unread = $messageModel->countUnread();
+                            if ($unread > 0) {
+                                echo '<span style="background: #e74c3c; color: white; padding: 2px 6px; border-radius: 10px; font-size: 11px; margin-left: 5px;">' . $unread . '</span>';
+                            }
+                        } catch (Exception $e) {
+                            // Ignorer les erreurs pour ne pas bloquer l'affichage
+                        }
+                    }
+                    ?>
                 </a>
                 <a href="firebase-test.php" class="nav-item <?= $current_page === 'firebase-test' ? 'active' : '' ?>" style="color: #f39c12;">
                     🔥 Firebase

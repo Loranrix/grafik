@@ -53,7 +53,9 @@ if (isset($_GET['qr'])) {
 <html lang="lv">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
     <title>Grafik - Darbinieku punkts</title>
     <link rel="stylesheet" href="../css/employee.css">
 </head>
@@ -67,7 +69,7 @@ if (isset($_GET['qr'])) {
         <?php endif; ?>
         
         <form method="POST" id="pinForm">
-            <div class="pin-display" id="pinDisplay">••••</div>
+            <div class="pin-display" id="pinDisplay"></div>
             
             <div class="keypad">
                 <button type="button" class="key" data-key="1">1</button>
@@ -94,38 +96,65 @@ if (isset($_GET['qr'])) {
         const pinInput = document.getElementById('pinInput');
         const pinForm = document.getElementById('pinForm');
         
+        // Fonction pour gérer le clic avec feedback visuel
+        function handleKeyPress(element, callback, highlightColor) {
+            const handler = function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                // Effet visuel de clic
+                element.style.transform = 'scale(0.95)';
+                if (highlightColor) {
+                    element.style.background = highlightColor;
+                }
+                
+                setTimeout(() => {
+                    element.style.transform = '';
+                    element.style.background = '';
+                }, 150);
+                
+                // Exécuter le callback
+                callback();
+            };
+            
+            // Support mobile et desktop
+            element.addEventListener('touchstart', handler, { passive: false });
+            element.addEventListener('click', handler);
+        }
+        
         // Gérer les touches numériques
         document.querySelectorAll('.key[data-key]').forEach(key => {
-            key.addEventListener('click', function() {
+            handleKeyPress(key, function() {
                 if (pin.length < 4) {
-                    pin += this.dataset.key;
+                    pin += key.dataset.key;
                     updateDisplay();
                     
                     if (pin.length === 4) {
-                        submitPin();
+                        setTimeout(() => submitPin(), 300);
                     }
                 }
-            });
+            }, '#5a67d8');
         });
         
         // Touche Cancel
-        document.getElementById('cancelKey').addEventListener('click', function() {
+        handleKeyPress(document.getElementById('cancelKey'), function() {
             pin = '';
             updateDisplay();
-        });
+        }, '#c0392b');
         
         // Touche OK
-        document.getElementById('okKey').addEventListener('click', function() {
+        handleKeyPress(document.getElementById('okKey'), function() {
             if (pin.length === 4) {
                 submitPin();
             }
-        });
+        }, '#229954');
         
         function updateDisplay() {
             if (pin.length === 0) {
-                pinDisplay.textContent = '••••';
+                pinDisplay.textContent = '';
+                pinDisplay.style.minHeight = '60px'; // Garde la hauteur même vide
             } else {
-                pinDisplay.textContent = '•'.repeat(pin.length) + '•'.repeat(4 - pin.length);
+                pinDisplay.textContent = '•'.repeat(pin.length);
             }
         }
         

@@ -1,7 +1,7 @@
 <?php
 /**
- * GRAFIK - QR Code General
- * Un seul QR code pour tous les employes
+ * GRAFIK - QR Code Général
+ * Un seul QR code pour tous les employés
  */
 
 require_once __DIR__ . '/../includes/config.php';
@@ -12,7 +12,7 @@ include 'header.php';
 
 $db = Database::getInstance();
 
-// Gerer les actions
+// Gérer les actions
 $message = '';
 $error = '';
 
@@ -30,24 +30,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                  ON DUPLICATE KEY UPDATE value = ?",
                 [$url, $url]
             );
-            $message = 'QR Code general genere avec succes !';
+            $message = 'QR Code général généré avec succès !';
         }
     } elseif ($action === 'delete_qr') {
         $db->query("DELETE FROM settings WHERE `key` = 'general_qr_url'");
-        $message = 'QR Code general supprime';
+        $message = 'QR Code général supprimé';
     }
 }
 
-// Recuperer l'URL du QR code si elle existe
+// Récupérer l'URL du QR code si elle existe
 $qr_url = $db->fetchOne("SELECT value FROM settings WHERE `key` = 'general_qr_url'");
 $qr_url = $qr_url ? $qr_url['value'] : '';
 ?>
 
 <div class="container">
     <div class="page-header">
-        <h1>QR Code General</h1>
+        <h1>QR Code Général</h1>
         <p style="color: #7f8c8d; margin-top: 10px;">
-            Un seul QR code pour l'acces au pointage de tous les employes
+            Un seul QR code pour l'accès au pointage de tous les employés
         </p>
     </div>
     
@@ -62,11 +62,11 @@ $qr_url = $qr_url ? $qr_url['value'] : '';
     <div class="card">
         <div style="padding: 30px;">
             <?php if (empty($qr_url)): ?>
-            <!-- Formulaire de generation -->
+            <!-- Formulaire de génération -->
             <div style="text-align: center; padding: 40px;">
-                <h2 style="color: #2c3e50; margin-bottom: 20px;">🔲 Generer un QR Code General</h2>
+                <h2 style="color: #2c3e50; margin-bottom: 20px;">🔲 Générer un QR Code Général</h2>
                 <p style="color: #7f8c8d; margin-bottom: 30px;">
-                    Ce QR code dirigera tous les employes vers la page de pointage principale
+                    Ce QR code dirigera tous les employés vers la page de pointage principale
                 </p>
                 
                 <form method="POST" style="max-width: 600px; margin: 0 auto;">
@@ -81,23 +81,23 @@ $qr_url = $qr_url ? $qr_url['value'] : '';
                                required 
                                style="font-size: 16px; padding: 15px;">
                         <small style="color: #7f8c8d; display: block; margin-top: 8px;">
-                            Cette URL sera encodee dans le QR code
+                            Cette URL sera encodée dans le QR code
                         </small>
                     </div>
                     
                     <button type="submit" class="btn btn-primary btn-large" style="margin-top: 20px;">
-                        🔲 Generer le QR Code
+                        🔲 Générer le QR Code
                     </button>
                 </form>
             </div>
             <?php else: ?>
             <!-- Affichage du QR Code -->
             <div style="text-align: center;">
-                <h2 style="color: #27ae60; margin-bottom: 20px;">✅ QR Code General Actif</h2>
+                <h2 style="color: #27ae60; margin-bottom: 20px;">✅ QR Code Général Actif</h2>
                 
                 <div style="background: white; padding: 30px; border-radius: 12px; display: inline-block; box-shadow: 0 4px 16px rgba(0,0,0,0.1);">
                     <img src="https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=<?= urlencode($qr_url) ?>" 
-                         alt="QR Code General"
+                         alt="QR Code Général"
                          style="max-width: 100%; border: 2px solid #27ae60; border-radius: 8px;">
                 </div>
                 
@@ -108,7 +108,7 @@ $qr_url = $qr_url ? $qr_url['value'] : '';
                 
                 <div style="display: flex; gap: 15px; justify-content: center; margin-top: 30px; flex-wrap: wrap;">
                     <button onclick="downloadQR()" class="btn btn-primary">
-                        📥 Telecharger (PNG)
+                        📥 Télécharger (PNG)
                     </button>
                     <button onclick="printQR()" class="btn btn-secondary">
                         🖨️ Imprimer
@@ -129,10 +129,10 @@ $qr_url = $qr_url ? $qr_url['value'] : '';
         <div style="padding: 20px;">
             <h3 style="color: #2c3e50; margin-bottom: 15px;">💡 Comment l'utiliser ?</h3>
             <ol style="color: #34495e; line-height: 1.8;">
-                <li>Imprimez ce QR code et affichez-le a l'entree de votre etablissement</li>
-                <li>Les employes scannent le QR code avec leur smartphone</li>
+                <li>Imprimez ce QR code et affichez-le à l'entrée de votre établissement</li>
+                <li>Les employés scannent le QR code avec leur smartphone</li>
                 <li>Ils arrivent sur la page de pointage et entrent leur PIN</li>
-                <li>Ils peuvent enregistrer leur arrivee ou depart</li>
+                <li>Ils peuvent enregistrer leur arrivée ou départ</li>
             </ol>
         </div>
     </div>
@@ -156,6 +156,21 @@ $qr_url = $qr_url ? $qr_url['value'] : '';
     color: #e74c3c;
     border: 1px solid #e74c3c;
 }
+
+@media print {
+    body * {
+        visibility: hidden;
+    }
+    #printArea, #printArea * {
+        visibility: visible;
+    }
+    #printArea {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+    }
+}
 </style>
 
 <script>
@@ -177,7 +192,7 @@ function printQR() {
     printWindow.document.write(`
         <html>
         <head>
-            <title>QR Code General - Grafik</title>
+            <title>QR Code Général - Grafik</title>
             <style>
                 body {
                     display: flex;
@@ -204,9 +219,9 @@ function printQR() {
             </style>
         </head>
         <body>
-            <h1>📊 Grafik - Pointage Employes</h1>
+            <h1>📊 Grafik - Pointage Employés</h1>
             <img src="https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=${encodeURIComponent(url)}">
-            <p>Scannez ce QR code pour pointer votre arrivee/depart</p>
+            <p>Scannez ce QR code pour pointer votre arrivée/départ</p>
         </body>
         </html>
     `);
@@ -218,3 +233,4 @@ function printQR() {
 </script>
 
 <?php include 'footer.php'; ?>
+

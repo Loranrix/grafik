@@ -4,7 +4,7 @@
     "type": "project",
     "require": {
         "php": ">=7.4",
-        "kreait/firebase-php": "^7.0",
+        "kreait/firebase-php": "^6.9",
         "tecnickcom/tcpdf": "^6.6",
         "phpoffice/phpspreadsheet": "^1.28"
     },

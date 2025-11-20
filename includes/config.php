@@ -3,6 +3,11 @@
  * GRAFIK - Configuration générale
  */
 
+// Charger Composer autoloader (pour Firebase et autres dépendances)
+if (file_exists(__DIR__ . '/../vendor/autoload.php')) {
+    require_once __DIR__ . '/../vendor/autoload.php';
+}
+
 // Fuseau horaire
 date_default_timezone_set('Europe/Riga');
 

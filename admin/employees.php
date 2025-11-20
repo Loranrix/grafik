@@ -52,6 +52,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $is_active = intval($_POST['is_active']);
         $employeeModel->setActive($id, $is_active);
         $message = 'Statut modifié avec succès';
+    } elseif ($action === 'delete') {
+        $id = intval($_POST['id']);
+        $employeeModel->delete($id);
+        $message = 'Employé supprimé avec succès';
     }
 }
 
@@ -114,6 +118,13 @@ $employees = $employeeModel->getAll(false);
                             <input type="hidden" name="is_active" value="<?= $emp['is_active'] ? 0 : 1 ?>">
                             <button type="submit" class="btn <?= $emp['is_active'] ? 'btn-danger' : 'btn-success' ?> btn-sm">
                                 <?= $emp['is_active'] ? 'Désactiver' : 'Activer' ?>
+                            </button>
+                        </form>
+                        <form method="POST" style="display: inline;" onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer cet employé ? Cette action est irréversible.');">
+                            <input type="hidden" name="action" value="delete">
+                            <input type="hidden" name="id" value="<?= $emp['id'] ?>">
+                            <button type="submit" class="btn btn-danger btn-sm" style="background: #c0392b;">
+                                🗑️ Supprimer
                             </button>
                         </form>
                     </td>

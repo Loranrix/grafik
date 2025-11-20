@@ -49,7 +49,9 @@ $punches = $punchModel->getByEmployeeDateRange($employee_id, $month_start, $mont
 <html lang="lv">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
     <title>Grafik - Mana statistika</title>
     <link rel="stylesheet" href="../css/employee.css">
 </head>
@@ -176,6 +178,7 @@ $punches = $punchModel->getByEmployeeDateRange($employee_id, $month_start, $mont
         <div class="button-group" style="margin-top: 30px;">
             <a href="actions.php" class="btn btn-secondary">← Atpakaļ</a>
             <a href="consumption.php" class="btn btn-consumption">Patēriņš</a>
+            <a href="logout.php" class="btn btn-exit">✕ Iziet</a>
         </div>
     </div>
 </body>

@@ -54,7 +54,9 @@ $total_month = $consumptionModel->getTotalForPeriod($employee_id, date('Y-m-01')
 <html lang="lv">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
     <title>Grafik - Patēriņš</title>
     <link rel="stylesheet" href="../css/employee.css">
 </head>
@@ -96,6 +98,8 @@ $total_month = $consumptionModel->getTotalForPeriod($employee_id, date('Y-m-01')
                            step="0.01"
                            min="0.01"
                            placeholder="Piemēram: 5.00"
+                           inputmode="decimal"
+                           pattern="[0-9]*\.?[0-9]*"
                            required>
                     <small style="color: #7f8c8d; display: block; margin-top: 5px;">
                         50% atlaide tiks piemērota automātiski
@@ -169,128 +173,11 @@ $total_month = $consumptionModel->getTotalForPeriod($employee_id, date('Y-m-01')
         
         <!-- Navigation buttons -->
         <div class="button-group" style="margin-top: 30px;">
-            <a href="arrival.php" class="btn btn-secondary">
-                ← Atpakaļ
-            </a>
-            <a href="dashboard.php" class="btn btn-secondary">
-                📊 Statistika
-            </a>
-        </div>
-        
-        <div class="footer">
-            <a href="logout.php" class="logout-link">Iziet</a>
+            <a href="actions.php" class="btn btn-secondary">← Atpakaļ</a>
+            <a href="dashboard.php" class="btn btn-dashboard">📊 Statistika</a>
+            <a href="logout.php" class="btn btn-exit">✕ Iziet</a>
         </div>
     </div>
 </body>
 </html>
-
-<style>
-.consumption-form {
-    padding: 20px;
-}
-
-.form-group {
-    margin-bottom: 20px;
-}
-
-.form-group label {
-    display: block;
-    font-weight: bold;
-    margin-bottom: 8px;
-    color: #2c3e50;
-}
-
-.form-group input {
-    width: 100%;
-    padding: 12px;
-    border: 2px solid #3498db;
-    border-radius: 8px;
-    font-size: 16px;
-    box-sizing: border-box;
-}
-
-.consumption-list {
-    padding: 10px;
-}
-
-.consumption-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 15px;
-    border-bottom: 1px solid #ecf0f1;
-}
-
-.consumption-item:last-child {
-    border-bottom: none;
-}
-
-.consumption-info {
-    flex: 1;
-}
-
-.consumption-name {
-    font-weight: bold;
-    color: #2c3e50;
-    margin-bottom: 5px;
-}
-
-.consumption-time {
-    font-size: 14px;
-    color: #7f8c8d;
-}
-
-.consumption-price {
-    text-align: right;
-}
-
-.original-price {
-    font-size: 12px;
-    color: #95a5a6;
-    text-decoration: line-through;
-}
-
-.discounted-price {
-    font-size: 18px;
-    font-weight: bold;
-    color: #27ae60;
-}
-
-.month-summary {
-    padding: 20px;
-}
-
-.summary-row {
-    display: flex;
-    justify-content: space-between;
-    padding: 12px 0;
-    border-bottom: 1px solid #ecf0f1;
-}
-
-.summary-row:last-child {
-    border-bottom: none;
-}
-
-.summary-row.savings {
-    background: #d4edda;
-    padding: 12px 10px;
-    border-radius: 8px;
-    margin-top: 10px;
-    color: #155724;
-}
-
-.summary-row strong.discounted {
-    color: #27ae60;
-    font-size: 18px;
-}
-
-.button-group {
-    display: flex;
-    gap: 10px;
-}
-
-.button-group .btn {
-    flex: 1;
-}
-</style>
 

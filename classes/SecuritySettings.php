@@ -4,12 +4,14 @@
  * Gestion des paramètres de sécurité configurables
  */
 
+require_once __DIR__ . '/Firebase.php';
+
 class SecuritySettings {
-    private $db;
+    private $firebase;
     private static $cache = [];
 
     public function __construct() {
-        $this->db = Database::getInstance();
+        $this->firebase = Firebase::getInstance();
     }
 
     /**
@@ -21,17 +23,7 @@ class SecuritySettings {
             return self::$cache[$key];
         }
 
-        $setting = $this->db->fetchOne(
-            "SELECT setting_value, setting_type FROM security_settings WHERE setting_key = ?",
-            [$key]
-        );
-
-        if (!$setting) {
-            return $default;
-        }
-
-        // Convertir selon le type
-        $value = $this->convertValue($setting['setting_value'], $setting['setting_type']);
+        $value = $this->firebase->getSecuritySetting($key, $default);
         
         // Mettre en cache
         self::$cache[$key] = $value;
@@ -43,42 +35,28 @@ class SecuritySettings {
      * Définir un paramètre
      */
     public function set($key, $value, $type = 'string') {
-        $valueStr = $this->valueToString($value, $type);
+        $description = $this->getDescription($key);
+        $result = $this->firebase->setSecuritySetting($key, $value, $type, $description);
         
-        $existing = $this->db->fetchOne(
-            "SELECT id FROM security_settings WHERE setting_key = ?",
-            [$key]
-        );
-
-        if ($existing) {
-            $this->db->query(
-                "UPDATE security_settings SET setting_value = ?, setting_type = ? WHERE setting_key = ?",
-                [$valueStr, $type, $key]
-            );
-        } else {
-            $this->db->query(
-                "INSERT INTO security_settings (setting_key, setting_value, setting_type) VALUES (?, ?, ?)",
-                [$key, $valueStr, $type]
-            );
+        if ($result) {
+            // Mettre à jour le cache
+            self::$cache[$key] = $value;
         }
-
-        // Mettre à jour le cache
-        self::$cache[$key] = $value;
-
-        return true;
+        
+        return $result;
     }
 
     /**
      * Obtenir tous les paramètres
      */
     public function getAll() {
-        $settings = $this->db->fetchAll("SELECT * FROM security_settings ORDER BY setting_key");
+        $settings = $this->firebase->getAllSecuritySettings();
         
         $result = [];
-        foreach ($settings as $setting) {
-            $result[$setting['setting_key']] = [
-                'value' => $this->convertValue($setting['setting_value'], $setting['setting_type']),
-                'type' => $setting['setting_type'],
+        foreach ($settings as $key => $setting) {
+            $result[$key] = [
+                'value' => $setting['value'],
+                'type' => $setting['type'],
                 'description' => $setting['description']
             ];
         }
@@ -97,35 +75,25 @@ class SecuritySettings {
     }
 
     /**
-     * Convertir une valeur selon son type
+     * Obtenir la description d'un paramètre
      */
-    private function convertValue($value, $type) {
-        switch ($type) {
-            case 'boolean':
-                return filter_var($value, FILTER_VALIDATE_BOOLEAN);
-            case 'integer':
-                return intval($value);
-            case 'json':
-                return json_decode($value, true);
-            default:
-                return $value;
-        }
-    }
-
-    /**
-     * Convertir une valeur en string pour stockage
-     */
-    private function valueToString($value, $type) {
-        switch ($type) {
-            case 'boolean':
-                return $value ? 'true' : 'false';
-            case 'integer':
-                return strval($value);
-            case 'json':
-                return json_encode($value);
-            default:
-                return strval($value);
-        }
+    private function getDescription($key) {
+        $descriptions = [
+            'device_restriction_enabled' => 'Restriction par appareil activée',
+            'multi_device_enabled' => 'Multi-appareil activé',
+            'gps_verification_enabled' => 'Vérification GPS activée',
+            'gps_latitude' => 'Latitude du restaurant',
+            'gps_longitude' => 'Longitude du restaurant',
+            'gps_radius_meters' => 'Rayon GPS en mètres',
+            'max_pin_attempts' => 'Nombre maximum de tentatives PIN',
+            'pin_attempt_lockout_minutes' => 'Durée de verrouillage après échecs (minutes)',
+            'early_punch_tolerance_minutes' => 'Tolérance pointage anticipé (minutes)',
+            'late_punch_tolerance_minutes' => 'Tolérance pointage retard (minutes)',
+            'notifications_enabled' => 'Notifications activées',
+            'admin_notification_email' => 'Email admin pour notifications'
+        ];
+        
+        return $descriptions[$key] ?? '';
     }
 
     /**
@@ -198,4 +166,3 @@ class SecuritySettings {
         ];
     }
 }
-

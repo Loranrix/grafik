@@ -4,11 +4,16 @@
  * Gestion des pointages
  */
 
+require_once __DIR__ . '/Firebase.php';
+require_once __DIR__ . '/Shift.php';
+
 class Punch {
-    private $db;
+    private $firebase;
+    private $shift;
 
     public function __construct() {
-        $this->db = Database::getInstance();
+        $this->firebase = Firebase::getInstance();
+        $this->shift = new Shift();
     }
 
     /**
@@ -19,15 +24,25 @@ class Punch {
             $datetime = date('Y-m-d H:i:s');
         }
 
+        // Vérifier le dernier pointage pour éviter les doublons
+        $lastPunch = $this->getLastPunch($employee_id);
+        if ($lastPunch && $lastPunch['punch_type'] === $type) {
+            // Si le dernier pointage est du même type, on refuse
+            $type_label = $type === 'in' ? 'ierašanās' : 'aiziešana';
+            throw new Exception("Nevar reģistrēt divreiz {$type_label}. Lūdzu, reģistrējiet pretējo darbību.");
+        }
+
         // Trouver le shift correspondant si existe
         $shift_id = $this->findShiftForPunch($employee_id, $datetime);
 
-        $this->db->query(
-            "INSERT INTO punches (employee_id, punch_type, punch_datetime, shift_id) VALUES (?, ?, ?, ?)",
-            [$employee_id, $type, $datetime, $shift_id]
-        );
+        $punch_data = [
+            'punch_type' => $type,
+            'punch_datetime' => $datetime,
+            'shift_id' => $shift_id
+        ];
 
-        return $this->db->lastInsertId();
+        $punch_id = $this->firebase->savePunch($employee_id, $punch_data);
+        return $punch_id;
     }
 
     /**
@@ -35,41 +50,49 @@ class Punch {
      */
     private function findShiftForPunch($employee_id, $datetime) {
         $date = date('Y-m-d', strtotime($datetime));
-        $shift = $this->db->fetchOne(
-            "SELECT id FROM shifts WHERE employee_id = ? AND shift_date = ? LIMIT 1",
-            [$employee_id, $date]
-        );
-        return $shift ? $shift['id'] : null;
+        $schedules = $this->firebase->getSchedulesByEmployeeMonth($employee_id, date('Y', strtotime($date)), date('n', strtotime($date)));
+        
+        foreach ($schedules as $schedule) {
+            if (isset($schedule['schedule_date']) && $schedule['schedule_date'] === $date) {
+                return $schedule['id'] ?? null;
+            }
+        }
+        return null;
     }
 
     /**
      * Récupérer le dernier pointage d'un employé
      */
     public function getLastPunch($employee_id) {
-        return $this->db->fetchOne(
-            "SELECT * FROM punches WHERE employee_id = ? ORDER BY punch_datetime DESC LIMIT 1",
-            [$employee_id]
-        );
+        $punches = $this->firebase->getPunches($employee_id);
+        if (empty($punches)) {
+            return null;
+        }
+        return $punches[0]; // Déjà trié par date décroissante
     }
 
     /**
      * Récupérer tous les pointages d'un employé pour une date
      */
     public function getByEmployeeAndDate($employee_id, $date) {
-        return $this->db->fetchAll(
-            "SELECT * FROM punches WHERE employee_id = ? AND DATE(punch_datetime) = ? ORDER BY punch_datetime",
-            [$employee_id, $date]
-        );
+        $punches = $this->firebase->getPunches($employee_id, $date, $date);
+        // Trier par heure croissante
+        usort($punches, function($a, $b) {
+            return strcmp($a['punch_datetime'], $b['punch_datetime']);
+        });
+        return $punches;
     }
 
     /**
      * Récupérer tous les pointages d'un employé pour une période
      */
     public function getByEmployeeDateRange($employee_id, $start_date, $end_date) {
-        return $this->db->fetchAll(
-            "SELECT * FROM punches WHERE employee_id = ? AND DATE(punch_datetime) BETWEEN ? AND ? ORDER BY punch_datetime",
-            [$employee_id, $start_date, $end_date]
-        );
+        $punches = $this->firebase->getPunches($employee_id, $start_date, $end_date);
+        // Trier par heure croissante
+        usort($punches, function($a, $b) {
+            return strcmp($a['punch_datetime'], $b['punch_datetime']);
+        });
+        return $punches;
     }
 
     /**
@@ -121,21 +144,32 @@ class Punch {
      * Supprimer un pointage
      */
     public function delete($id) {
-        $this->db->query("DELETE FROM punches WHERE id = ?", [$id]);
+        // Pour supprimer un pointage, on doit trouver l'employé et le pointage
+        // On doit parcourir tous les employés pour trouver le pointage
+        $allEmployees = $this->firebase->getAllEmployees();
+        foreach ($allEmployees as $employee_id => $employee) {
+            $punches = $this->firebase->getPunches($employee_id);
+            foreach ($punches as $punch) {
+                if (isset($punch['id']) && $punch['id'] === $id) {
+                    // Supprimer le pointage de Firebase
+                    try {
+                        $ref = $this->firebase->getDatabase()->getReference('grafik/punches/' . $employee_id . '/' . $id);
+                        $ref->remove();
+                        return true;
+                    } catch (Exception $e) {
+                        error_log("Erreur suppression pointage: " . $e->getMessage());
+                        return false;
+                    }
+                }
+            }
+        }
+        return false;
     }
 
     /**
      * Récupérer tous les pointages pour une date (admin)
      */
     public function getAllByDate($date) {
-        return $this->db->fetchAll(
-            "SELECT p.*, e.first_name, e.last_name 
-             FROM punches p 
-             JOIN employees e ON p.employee_id = e.id 
-             WHERE DATE(p.punch_datetime) = ? 
-             ORDER BY p.punch_datetime DESC",
-            [$date]
-        );
+        return $this->firebase->getAllPunchesByDate($date);
     }
 }
-

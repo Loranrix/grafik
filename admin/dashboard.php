@@ -8,11 +8,13 @@ require_once __DIR__ . '/../classes/Database.php';
 require_once __DIR__ . '/../classes/Admin.php';
 require_once __DIR__ . '/../classes/Employee.php';
 require_once __DIR__ . '/../classes/Punch.php';
+require_once __DIR__ . '/../classes/Consumption.php';
 
 include 'header.php';
 
 $employeeModel = new Employee();
 $punchModel = new Punch();
+$consumptionModel = new Consumption();
 
 // Statistiques
 $total_employees = count($employeeModel->getAll(false));
@@ -22,6 +24,9 @@ $today_punches = count($punchModel->getAllByDate(date('Y-m-d')));
 // Derniers pointages
 $recent_punches = $punchModel->getAllByDate(date('Y-m-d'));
 $recent_punches = array_slice($recent_punches, 0, 10);
+
+// Dernières consommations
+$recent_consumptions = $consumptionModel->getRecent(10);
 ?>
 
 <div class="container">
@@ -73,6 +78,37 @@ $recent_punches = array_slice($recent_punches, 0, 10);
         </table>
         <?php else: ?>
         <p style="color: #999; text-align: center; padding: 20px;">Aucun pointage aujourd'hui</p>
+        <?php endif; ?>
+    </div>
+    
+    <div class="card" style="margin-top: 30px;">
+        <h2>Dernières consommations</h2>
+        
+        <?php if (count($recent_consumptions) > 0): ?>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Employé</th>
+                    <th>Article</th>
+                    <th>Prix original</th>
+                    <th>Prix payé</th>
+                    <th>Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php foreach ($recent_consumptions as $cons): ?>
+                <tr>
+                    <td><?= htmlspecialchars($cons['first_name'] . ' ' . $cons['last_name']) ?></td>
+                    <td><?= htmlspecialchars($cons['item_name']) ?></td>
+                    <td><?= number_format($cons['original_price'], 2) ?> €</td>
+                    <td><?= number_format($cons['paid_price'], 2) ?> €</td>
+                    <td><?= date('d/m/Y H:i', strtotime($cons['consumption_datetime'])) ?></td>
+                </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
+        <?php else: ?>
+        <p style="color: #999; text-align: center; padding: 20px;">Aucune consommation enregistrée</p>
         <?php endif; ?>
     </div>
 </div>

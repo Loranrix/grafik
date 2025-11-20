@@ -4,53 +4,79 @@
  * Gestion des employés
  */
 
+require_once __DIR__ . '/Firebase.php';
+
 class Employee {
-    private $db;
+    private $firebase;
 
     public function __construct() {
-        $this->db = Database::getInstance();
+        $this->firebase = Firebase::getInstance();
     }
 
     /**
      * Récupérer tous les employés actifs
      */
     public function getAll($active_only = true) {
-        $sql = "SELECT * FROM employees";
-        if ($active_only) {
-            $sql .= " WHERE is_active = 1";
+        $allEmployees = $this->firebase->getAllEmployees();
+        $result = [];
+        
+        foreach ($allEmployees as $id => $employee) {
+            if ($active_only && (!isset($employee['is_active']) || !$employee['is_active'])) {
+                continue;
+            }
+            $employee['id'] = $id;
+            $result[] = $employee;
         }
-        $sql .= " ORDER BY last_name, first_name";
-        return $this->db->fetchAll($sql);
+        
+        // Trier par nom
+        usort($result, function($a, $b) {
+            $lastNameCmp = strcmp($a['last_name'] ?? '', $b['last_name'] ?? '');
+            if ($lastNameCmp !== 0) return $lastNameCmp;
+            return strcmp($a['first_name'] ?? '', $b['first_name'] ?? '');
+        });
+        
+        return $result;
     }
 
     /**
      * Récupérer un employé par ID
      */
     public function getById($id) {
-        return $this->db->fetchOne(
-            "SELECT * FROM employees WHERE id = ?",
-            [$id]
-        );
+        $employee = $this->firebase->getEmployee($id);
+        if ($employee) {
+            $employee['id'] = $id;
+        }
+        return $employee;
     }
 
     /**
      * Récupérer un employé par PIN
      */
     public function getByPin($pin) {
-        return $this->db->fetchOne(
-            "SELECT * FROM employees WHERE pin = ? AND is_active = 1",
-            [$pin]
-        );
+        $allEmployees = $this->firebase->getAllEmployees();
+        foreach ($allEmployees as $id => $employee) {
+            if (isset($employee['pin']) && $employee['pin'] === $pin &&
+                isset($employee['is_active']) && $employee['is_active']) {
+                $employee['id'] = $id;
+                return $employee;
+            }
+        }
+        return null;
     }
 
     /**
      * Récupérer un employé par QR code
      */
     public function getByQr($qr_code) {
-        return $this->db->fetchOne(
-            "SELECT * FROM employees WHERE qr_code = ? AND is_active = 1",
-            [$qr_code]
-        );
+        $allEmployees = $this->firebase->getAllEmployees();
+        foreach ($allEmployees as $id => $employee) {
+            if (isset($employee['qr_code']) && $employee['qr_code'] === $qr_code &&
+                isset($employee['is_active']) && $employee['is_active']) {
+                $employee['id'] = $id;
+                return $employee;
+            }
+        }
+        return null;
     }
 
     /**
@@ -60,46 +86,67 @@ class Employee {
         // Générer un QR code unique
         $qr_code = $this->generateUniqueQr();
         
-        $this->db->query(
-            "INSERT INTO employees (first_name, last_name, phone, pin, qr_code) VALUES (?, ?, ?, ?, ?)",
-            [$first_name, $last_name, $phone, $pin, $qr_code]
-        );
+        // Générer un ID unique
+        $employee_id = $this->firebase->generateEmployeeId();
         
-        return $this->db->lastInsertId();
+        $data = [
+            'first_name' => $first_name,
+            'last_name' => $last_name,
+            'phone' => $phone,
+            'pin' => $pin,
+            'qr_code' => $qr_code,
+            'is_active' => true,
+            'created_at' => date('Y-m-d\TH:i:s'),
+            'updated_at' => date('Y-m-d\TH:i:s')
+        ];
+        
+        if ($this->firebase->saveEmployee($employee_id, $data)) {
+            return $employee_id;
+        }
+        
+        return false;
     }
 
     /**
      * Mettre à jour un employé
      */
     public function update($id, $first_name, $last_name, $phone, $pin = null) {
-        if ($pin !== null) {
-            $this->db->query(
-                "UPDATE employees SET first_name = ?, last_name = ?, phone = ?, pin = ? WHERE id = ?",
-                [$first_name, $last_name, $phone, $pin, $id]
-            );
-        } else {
-            $this->db->query(
-                "UPDATE employees SET first_name = ?, last_name = ?, phone = ? WHERE id = ?",
-                [$first_name, $last_name, $phone, $id]
-            );
+        $employee = $this->firebase->getEmployee($id);
+        if (!$employee) {
+            return false;
         }
+        
+        $employee['first_name'] = $first_name;
+        $employee['last_name'] = $last_name;
+        $employee['phone'] = $phone;
+        if ($pin !== null) {
+            $employee['pin'] = $pin;
+        }
+        $employee['updated_at'] = date('Y-m-d\TH:i:s');
+        
+        return $this->firebase->saveEmployee($id, $employee);
     }
 
     /**
      * Activer/désactiver un employé
      */
     public function setActive($id, $is_active) {
-        $this->db->query(
-            "UPDATE employees SET is_active = ? WHERE id = ?",
-            [$is_active ? 1 : 0, $id]
-        );
+        $employee = $this->firebase->getEmployee($id);
+        if (!$employee) {
+            return false;
+        }
+        
+        $employee['is_active'] = (bool)$is_active;
+        $employee['updated_at'] = date('Y-m-d\TH:i:s');
+        
+        return $this->firebase->saveEmployee($id, $employee);
     }
 
     /**
      * Supprimer un employé
      */
     public function delete($id) {
-        $this->db->query("DELETE FROM employees WHERE id = ?", [$id]);
+        return $this->firebase->deleteEmployee($id);
     }
 
     /**
@@ -108,10 +155,14 @@ class Employee {
     private function generateUniqueQr() {
         do {
             $qr_code = bin2hex(random_bytes(16));
-            $exists = $this->db->fetchOne(
-                "SELECT id FROM employees WHERE qr_code = ?",
-                [$qr_code]
-            );
+            $exists = false;
+            $allEmployees = $this->firebase->getAllEmployees();
+            foreach ($allEmployees as $employee) {
+                if (isset($employee['qr_code']) && $employee['qr_code'] === $qr_code) {
+                    $exists = true;
+                    break;
+                }
+            }
         } while ($exists);
         
         return $qr_code;
@@ -121,18 +172,16 @@ class Employee {
      * Vérifier si un PIN existe déjà
      */
     public function pinExists($pin, $exclude_id = null) {
-        if ($exclude_id) {
-            $result = $this->db->fetchOne(
-                "SELECT id FROM employees WHERE pin = ? AND id != ?",
-                [$pin, $exclude_id]
-            );
-        } else {
-            $result = $this->db->fetchOne(
-                "SELECT id FROM employees WHERE pin = ?",
-                [$pin]
-            );
+        $allEmployees = $this->firebase->getAllEmployees();
+        foreach ($allEmployees as $id => $employee) {
+            if ($exclude_id && $id === $exclude_id) {
+                continue;
+            }
+            if (isset($employee['pin']) && $employee['pin'] === $pin) {
+                return true;
+            }
         }
-        return (bool)$result;
+        return false;
     }
 }
 

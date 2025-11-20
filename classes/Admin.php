@@ -4,11 +4,13 @@
  * Gestion des administrateurs
  */
 
+require_once __DIR__ . '/Firebase.php';
+
 class Admin {
-    private $db;
+    private $firebase;
 
     public function __construct() {
-        $this->db = Database::getInstance();
+        $this->firebase = Firebase::getInstance();
     }
 
     /**
@@ -22,7 +24,10 @@ class Admin {
             if (!$admin) {
                 // Créer l'admin s'il n'existe pas
                 $hashed_password = password_hash($password, PASSWORD_DEFAULT);
-                $this->create($username, $hashed_password);
+                $admin_id = $this->create($username, $hashed_password);
+                if ($admin_id) {
+                    $this->updateLastLogin($admin_id);
+                }
             } else {
                 $this->updateLastLogin($admin['id']);
             }
@@ -35,31 +40,34 @@ class Admin {
      * Récupérer un admin par username
      */
     public function getByUsername($username) {
-        return $this->db->fetchOne(
-            "SELECT * FROM admins WHERE username = ?",
-            [$username]
-        );
+        return $this->firebase->getAdminByUsername($username);
     }
 
     /**
      * Créer un admin
      */
     public function create($username, $hashed_password) {
-        $this->db->query(
-            "INSERT INTO admins (username, password) VALUES (?, ?)",
-            [$username, $hashed_password]
-        );
-        return $this->db->lastInsertId();
+        $admin_id = 'admin_' . time() . '_' . uniqid();
+        
+        $data = [
+            'username' => $username,
+            'password' => $hashed_password,
+            'created_at' => date('Y-m-d\TH:i:s'),
+            'last_login' => null
+        ];
+        
+        if ($this->firebase->saveAdmin($admin_id, $data)) {
+            return $admin_id;
+        }
+        
+        return false;
     }
 
     /**
      * Mettre à jour last_login
      */
     public function updateLastLogin($admin_id) {
-        $this->db->query(
-            "UPDATE admins SET last_login = CURRENT_TIMESTAMP WHERE id = ?",
-            [$admin_id]
-        );
+        return $this->firebase->updateAdminLastLogin($admin_id);
     }
 
     /**
@@ -88,4 +96,3 @@ class Admin {
         session_destroy();
     }
 }
-

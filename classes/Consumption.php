@@ -4,11 +4,14 @@
  * Gestion des consommations employés
  */
 
+require_once __DIR__ . '/Firebase.php';
+require_once __DIR__ . '/Employee.php';
+
 class Consumption {
-    private $db;
+    private $firebase;
 
     public function __construct() {
-        $this->db = Database::getInstance();
+        $this->firebase = Firebase::getInstance();
     }
 
     /**
@@ -19,75 +22,59 @@ class Consumption {
         $consumption_date = date('Y-m-d');
         $consumption_time = date('H:i:s');
         
-        $this->db->query(
-            "INSERT INTO consumptions 
-             (employee_id, item_name, original_price, discounted_price, discount_percent, consumption_date, consumption_time) 
-             VALUES (?, ?, ?, ?, ?, ?, ?)",
-            [$employee_id, $item_name, $original_price, $discounted_price, $discount_percent, $consumption_date, $consumption_time]
-        );
+        $consumption_id = $this->firebase->generateConsumptionId();
         
-        return $this->db->lastInsertId();
+        $data = [
+            'employee_id' => $employee_id,
+            'item_name' => $item_name,
+            'original_price' => $original_price,
+            'discounted_price' => $discounted_price,
+            'discount_percent' => $discount_percent,
+            'consumption_date' => $consumption_date,
+            'consumption_time' => $consumption_time,
+            'created_at' => date('Y-m-d\TH:i:s')
+        ];
+        
+        if ($this->firebase->saveConsumption($consumption_id, $data)) {
+            return $consumption_id;
+        }
+        
+        return false;
     }
 
     /**
      * Récupérer les consommations d'un employé
      */
     public function getForEmployee($employee_id, $limit = 50) {
-        return $this->db->fetchAll(
-            "SELECT * FROM consumptions 
-             WHERE employee_id = ? 
-             ORDER BY consumption_date DESC, consumption_time DESC
-             LIMIT ?",
-            [$employee_id, $limit]
-        );
+        return $this->firebase->getConsumptionsForEmployee($employee_id, $limit);
     }
 
     /**
      * Récupérer les consommations d'un employé pour une période
      */
     public function getForEmployeePeriod($employee_id, $start_date, $end_date) {
-        return $this->db->fetchAll(
-            "SELECT * FROM consumptions 
-             WHERE employee_id = ? AND consumption_date BETWEEN ? AND ?
-             ORDER BY consumption_date DESC, consumption_time DESC",
-            [$employee_id, $start_date, $end_date]
-        );
+        return $this->firebase->getConsumptionsForEmployeePeriod($employee_id, $start_date, $end_date);
     }
 
     /**
      * Calculer le total des consommations pour un employé sur une période
      */
     public function getTotalForPeriod($employee_id, $start_date, $end_date) {
-        $result = $this->db->fetchOne(
-            "SELECT 
-                COUNT(*) as count,
-                SUM(original_price) as total_original,
-                SUM(discounted_price) as total_discounted
-             FROM consumptions 
-             WHERE employee_id = ? AND consumption_date BETWEEN ? AND ?",
-            [$employee_id, $start_date, $end_date]
-        );
-        
-        return $result ?: ['count' => 0, 'total_original' => 0, 'total_discounted' => 0];
+        return $this->firebase->getConsumptionTotalForPeriod($employee_id, $start_date, $end_date);
     }
 
     /**
      * Supprimer une consommation
      */
     public function delete($id) {
-        $this->db->query("DELETE FROM consumptions WHERE id = ?", [$id]);
+        return $this->firebase->deleteConsumption($id);
     }
 
     /**
      * Récupérer les consommations du jour pour un employé
      */
     public function getTodayForEmployee($employee_id) {
-        return $this->db->fetchAll(
-            "SELECT * FROM consumptions 
-             WHERE employee_id = ? AND consumption_date = CURDATE()
-             ORDER BY consumption_time DESC",
-            [$employee_id]
-        );
+        return $this->firebase->getTodayConsumptionsForEmployee($employee_id);
     }
 
     /**
@@ -99,5 +86,28 @@ class Consumption {
         
         return $this->getForEmployeePeriod($employee_id, $start_date, $end_date);
     }
-}
 
+    /**
+     * Récupérer les dernières consommations (pour admin dashboard)
+     */
+    public function getRecent($limit = 10) {
+        $consumptions = $this->firebase->getRecentConsumptions($limit);
+        
+        // Enrichir avec les noms des employés
+        $employee = new Employee();
+        foreach ($consumptions as &$consumption) {
+            if (isset($consumption['employee_id'])) {
+                $emp = $employee->getById($consumption['employee_id']);
+                if ($emp) {
+                    $consumption['first_name'] = $emp['first_name'] ?? '';
+                    $consumption['last_name'] = $emp['last_name'] ?? '';
+                }
+            }
+            // Créer un champ consumption_datetime pour compatibilité
+            $consumption['consumption_datetime'] = ($consumption['consumption_date'] ?? '') . ' ' . ($consumption['consumption_time'] ?? '');
+            $consumption['paid_price'] = $consumption['discounted_price'] ?? 0;
+        }
+        
+        return $consumptions;
+    }
+}
