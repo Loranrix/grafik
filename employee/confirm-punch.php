@@ -20,11 +20,56 @@ if (!isset($_SESSION['employee_id'])) {
 $employee_id = $_SESSION['employee_id'];
 $employee_name = $_SESSION['employee_name'];
 
+// Récupérer les informations de l'employé
+$employeeModel = new Employee();
+$employee = $employeeModel->getById($employee_id);
+
 // Vérifier le type de pointage
 $type = isset($_GET['type']) ? $_GET['type'] : 'in';
 if (!in_array($type, ['in', 'out'])) {
     header('Location: actions.php');
     exit;
+}
+
+// Vérifier les oublis de pointage
+$punchModel = new Punch();
+$today = date('Y-m-d');
+$yesterday = date('Y-m-d', strtotime('-1 day'));
+
+// Récupérer les pointages d'hier et d'aujourd'hui
+$punches_yesterday = $punchModel->getByEmployeeAndDate($employee_id, $yesterday);
+$punches_today = $punchModel->getByEmployeeAndDate($employee_id, $today);
+
+// Vérifier s'il y a eu un oubli hier
+$has_missing_punch = false;
+if (count($punches_yesterday) > 0) {
+    $has_in = false;
+    $has_out = false;
+    foreach ($punches_yesterday as $punch) {
+        if ($punch['punch_type'] === 'in') $has_in = true;
+        if ($punch['punch_type'] === 'out') $has_out = true;
+    }
+    // Si arrivée sans départ ou départ sans arrivée
+    if (($has_in && !$has_out) || ($has_out && !$has_in)) {
+        $has_missing_punch = true;
+    }
+}
+
+// Si oubli détecté, rediriger vers la page de message
+if ($has_missing_punch) {
+    header('Location: message.php?type=missing_punch');
+    exit;
+}
+
+// Si c'est un départ après 20h pour un employé Cuisine, rediriger vers la saisie des boîtes
+if ($type === 'out') {
+    $current_hour = (int)date('H');
+    $employee_type = $employee['employee_type'] ?? 'Autre';
+    
+    if ($employee_type === 'Cuisine' && $current_hour >= 20) {
+        header('Location: boxes-input.php');
+        exit;
+    }
 }
 
 $type_label = $type === 'in' ? 'Ierašanās' : 'Aiziešana';

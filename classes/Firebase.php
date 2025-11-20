@@ -146,6 +146,11 @@ class Firebase {
                 'created_at' => date('Y-m-d\TH:i:s')
             ];
             
+            // Ajouter boxes_count si présent
+            if (isset($punch_data['boxes_count']) && $punch_data['boxes_count'] !== null) {
+                $normalized['boxes_count'] = intval($punch_data['boxes_count']);
+            }
+            
             $ref = $this->database->getReference('grafik/punches/' . $employee_id);
             $newPunchRef = $ref->push($normalized);
             return $newPunchRef->getKey();
@@ -186,6 +191,7 @@ class Firebase {
                     'punch_type' => $punch['type'] ?? $punch['punch_type'] ?? '',
                     'punch_datetime' => str_replace('T', ' ', $punch_datetime),
                     'shift_id' => $punch['shift_id'] ?? null,
+                    'boxes_count' => $punch['boxes_count'] ?? null,
                     'created_at' => $punch['created_at'] ?? null
                 ];
             }
@@ -226,7 +232,8 @@ class Firebase {
                             'last_name' => $employee['last_name'] ?? '',
                             'punch_type' => $punch['type'] ?? $punch['punch_type'] ?? '',
                             'punch_datetime' => str_replace('T', ' ', $punch_datetime),
-                            'shift_id' => $punch['shift_id'] ?? null
+                            'shift_id' => $punch['shift_id'] ?? null,
+                            'boxes_count' => $punch['boxes_count'] ?? null
                         ];
                     }
                 }

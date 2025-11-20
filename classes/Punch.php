@@ -19,7 +19,7 @@ class Punch {
     /**
      * Enregistrer un pointage (arrivée ou départ)
      */
-    public function record($employee_id, $type, $datetime = null) {
+    public function record($employee_id, $type, $datetime = null, $boxes_count = null) {
         if ($datetime === null) {
             $datetime = date('Y-m-d H:i:s');
         }
@@ -35,11 +35,20 @@ class Punch {
         // Trouver le shift correspondant si existe
         $shift_id = $this->findShiftForPunch($employee_id, $datetime);
 
+        // Préparer les données pour Firebase
         $punch_data = [
+            'type' => $type,
             'punch_type' => $type,
+            'datetime' => str_replace(' ', 'T', $datetime),
             'punch_datetime' => $datetime,
-            'shift_id' => $shift_id
+            'shift_id' => $shift_id,
+            'created_at' => date('Y-m-d\TH:i:s')
         ];
+        
+        // Ajouter le nombre de boîtes si présent
+        if ($boxes_count !== null && $boxes_count >= 0) {
+            $punch_data['boxes_count'] = $boxes_count;
+        }
 
         $punch_id = $this->firebase->savePunch($employee_id, $punch_data);
         return $punch_id;
@@ -138,6 +147,51 @@ class Punch {
      */
     public function addManual($employee_id, $type, $datetime) {
         return $this->record($employee_id, $type, $datetime);
+    }
+
+    /**
+     * Mettre à jour un pointage (admin)
+     */
+    public function update($punch_id, $datetime, $boxes_count = null) {
+        // Trouver le pointage dans Firebase
+        $allEmployees = $this->firebase->getAllEmployees();
+        foreach ($allEmployees as $employee_id => $employee) {
+            try {
+                $ref = $this->firebase->getDatabase()->getReference('grafik/punches/' . $employee_id);
+                $employeePunches = $ref->getValue() ?? [];
+                
+                foreach ($employeePunches as $key => $punch) {
+                    // Vérifier si c'est le bon pointage (par ID ou clé Firebase)
+                    // Le punch_id peut être la clé Firebase ($key) ou l'ID stocké
+                    if ($key === (string)$punch_id || $key === $punch_id || (isset($punch['id']) && $punch['id'] === $punch_id)) {
+                        // Construire les données mises à jour
+                        $punch_data = $punch; // Garder toutes les données existantes
+                        $punch_data['type'] = $punch['type'] ?? $punch['punch_type'] ?? 'in';
+                        $punch_data['punch_type'] = $punch['type'] ?? $punch['punch_type'] ?? 'in';
+                        
+                        // Mettre à jour la date/heure
+                        $datetime_formatted = str_replace(' ', 'T', $datetime);
+                        $punch_data['datetime'] = $datetime_formatted;
+                        $punch_data['punch_datetime'] = $datetime;
+                        
+                        // Mettre à jour boxes_count si fourni
+                        if ($boxes_count !== null) {
+                            $punch_data['boxes_count'] = $boxes_count;
+                        }
+                        // Sinon, garder la valeur existante si présente
+                        
+                        // Mettre à jour dans Firebase
+                        $ref = $this->firebase->getDatabase()->getReference('grafik/punches/' . $employee_id . '/' . $key);
+                        $ref->update($punch_data);
+                        return true;
+                    }
+                }
+            } catch (Exception $e) {
+                error_log("Erreur recherche pointage pour employé $employee_id: " . $e->getMessage());
+                continue;
+            }
+        }
+        return false;
     }
 
     /**

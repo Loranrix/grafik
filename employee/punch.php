@@ -19,6 +19,7 @@ if (!isset($_SESSION['employee_id'])) {
 
 $employee_id = $_SESSION['employee_id'];
 $employee_name = $_SESSION['employee_name'];
+$employeeModel = new Employee();
 
 // Vérifier le type de pointage
 $type = isset($_GET['type']) ? $_GET['type'] : 'in';
@@ -37,12 +38,56 @@ if (!$confirm) {
 $punchModel = new Punch();
 $shiftModel = new Shift();
 
+// Récupérer le nombre de boîtes si présent
+$boxes_count = isset($_GET['boxes']) ? intval($_GET['boxes']) : null;
+
 // Enregistrer le pointage
 $error_message = null;
 $punch_id = null;
 try {
-    $punch_id = $punchModel->record($employee_id, $type);
+    $punch_id = $punchModel->record($employee_id, $type, null, $boxes_count);
     $punch_datetime = date('Y-m-d H:i:s');
+    
+    // Si des boîtes ont été saisies, envoyer une notification par email
+    if ($boxes_count !== null && $boxes_count > 0) {
+        require_once __DIR__ . '/../classes/SecuritySettings.php';
+        $securitySettings = new SecuritySettings();
+        $admin_email = $securitySettings->getAdminNotificationEmail();
+        if (empty($admin_email)) {
+            $admin_email = 'info@napopizza.lv'; // Email par défaut
+        }
+        
+        $employee = $employeeModel->getById($employee_id);
+        $employee_full_name = $employee['first_name'] . ' ' . $employee['last_name'];
+        
+        $to = $admin_email;
+        $subject = 'Grafik - Saisie boîtes vides - ' . $employee_full_name;
+        $body = "📦 Nouvelle saisie de boîtes vides\n\n";
+        $body .= "Darbinieks: " . $employee_full_name . "\n";
+        $body .= "Datums/Laiks: " . date('d/m/Y H:i:s', strtotime($punch_datetime)) . "\n";
+        $body .= "Tips punktējuma: Aiziešana\n";
+        $body .= "Metāla kastīšu skaits: " . $boxes_count . "\n";
+        $body .= "Laiks: " . date('H:i', strtotime($punch_datetime)) . "\n";
+        
+        // Configuration email avec SMTP
+        $headers = "From: grafik@napopizza.lv\r\n";
+        $headers .= "Reply-To: grafik@napopizza.lv\r\n";
+        $headers .= "Content-Type: text/plain; charset=UTF-8\r\n";
+        $headers .= "X-Mailer: PHP/" . phpversion() . "\r\n";
+        
+        // Tentative d'envoi avec ini_set pour SMTP si disponible
+        $old_smtp = ini_get('SMTP');
+        $old_smtp_port = ini_get('smtp_port');
+        
+        ini_set('SMTP', 'napopizza.lv');
+        ini_set('smtp_port', '587');
+        
+        @mail($to, $subject, $body, $headers);
+        
+        // Restaurer les paramètres
+        if ($old_smtp !== false) ini_set('SMTP', $old_smtp);
+        if ($old_smtp_port !== false) ini_set('smtp_port', $old_smtp_port);
+    }
 } catch (Exception $e) {
     $error_message = $e->getMessage();
     $punch_datetime = date('Y-m-d H:i:s');

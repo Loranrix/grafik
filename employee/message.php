@@ -21,6 +21,9 @@ $messageModel = new Message();
 $success = false;
 $error = '';
 
+// Vérifier si c'est un message d'oubli de pointage
+$is_missing_punch = isset($_GET['type']) && $_GET['type'] === 'missing_punch';
+
 // Traitement du formulaire
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['message'])) {
     $message_text = trim($_POST['message']);
@@ -36,11 +39,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['message'])) {
             $employee = (new Employee())->getById($employee_id);
             $employee_full_name = $employee['first_name'] . ' ' . $employee['last_name'];
             
-            $to = 'info@napopizza.lv';
-            $subject = 'Grafik - Jauns ziņojums no ' . $employee_full_name;
-            $body = "Jauns ziņojums no darbinieka:\n\n";
+            // Récupérer l'email admin depuis les paramètres de sécurité
+            require_once __DIR__ . '/../classes/SecuritySettings.php';
+            $securitySettings = new SecuritySettings();
+            $admin_email = $securitySettings->getAdminNotificationEmail();
+            if (empty($admin_email)) {
+                $admin_email = 'info@napopizza.lv'; // Email par défaut
+            }
+            
+            $to = $admin_email;
+            
+            // Adapter le sujet selon le type de message
+            if ($is_missing_punch) {
+                $subject = 'Grafik - URGENT: Aizmirsts punktējums - ' . $employee_full_name;
+                $body = "⚠️ URGENT: Aizmirsts punktējums!\n\n";
+            } else {
+                $subject = 'Grafik - Jauns ziņojums no ' . $employee_full_name;
+                $body = "Jauns ziņojums no darbinieka:\n\n";
+            }
+            
             $body .= "Darbinieks: " . $employee_full_name . "\n";
             $body .= "Datums/Laiks: " . date('d/m/Y H:i') . "\n";
+            if ($is_missing_punch) {
+                $body .= "Tips: Aizmirsts punktējums (nepilna diena)\n";
+            }
             $body .= "Ziņojums:\n" . $message_text . "\n";
             
             // Configuration email avec SMTP
@@ -171,10 +193,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['message'])) {
                 </div>
             <?php endif; ?>
             
+            <?php if ($is_missing_punch): ?>
+            <div class="alert alert-error" style="background: #f39c12; color: white;">
+                ⚠️ <strong>Brīdinājums:</strong><br>
+                Pēdējo reizi bija aizmirsts punktējums. Lūdzu, sazinieties ar hierarhiju.
+            </div>
+            <?php endif; ?>
+            
             <div class="info-text">
                 <strong>💡 Informācija:</strong><br>
-                Izmantojiet šo formu, lai paziņotu, ka esat kļūdījies, nospiežot "Ierašanās" vai "Aiziešana". 
-                Jūsu ziņojums tiks nosūtīts administratoram.
+                <?php if ($is_missing_punch): ?>
+                    Lūdzu, informējiet administratoru par aizmirsto punktējumu. Jūsu ziņojums tiks nosūtīts administratoram.
+                <?php else: ?>
+                    Izmantojiet šo formu, lai paziņotu, ka esat kļūdījies, nospiežot "Ierašanās" vai "Aiziešana". 
+                    Jūsu ziņojums tiks nosūtīts administratoram.
+                <?php endif; ?>
             </div>
             
             <form method="POST" class="message-form">

@@ -53,6 +53,9 @@ require_once __DIR__ . '/../classes/Message.php';
                 <a href="consumption.php" class="nav-item <?= $current_page === 'consumption' ? 'active' : '' ?>">
                     🍕 Consommations
                 </a>
+                <a href="boxes.php" class="nav-item <?= $current_page === 'boxes' ? 'active' : '' ?>">
+                    📦 Boîtes vides
+                </a>
                 <a href="security-settings.php" class="nav-item <?= $current_page === 'security-settings' ? 'active' : '' ?>">
                     🔒 Sécurité
                 </a>

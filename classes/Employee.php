@@ -82,7 +82,7 @@ class Employee {
     /**
      * Créer un nouvel employé
      */
-    public function create($first_name, $last_name, $phone, $pin) {
+    public function create($first_name, $last_name, $phone, $pin, $employee_type = 'Autre') {
         // Générer un QR code unique
         $qr_code = $this->generateUniqueQr();
         
@@ -94,6 +94,7 @@ class Employee {
             'last_name' => $last_name,
             'phone' => $phone,
             'pin' => $pin,
+            'employee_type' => $employee_type,
             'qr_code' => $qr_code,
             'is_active' => true,
             'created_at' => date('Y-m-d\TH:i:s'),
@@ -110,7 +111,7 @@ class Employee {
     /**
      * Mettre à jour un employé
      */
-    public function update($id, $first_name, $last_name, $phone, $pin = null) {
+    public function update($id, $first_name, $last_name, $phone, $pin = null, $employee_type = null) {
         $employee = $this->firebase->getEmployee($id);
         if (!$employee) {
             return false;
@@ -121,6 +122,9 @@ class Employee {
         $employee['phone'] = $phone;
         if ($pin !== null) {
             $employee['pin'] = $pin;
+        }
+        if ($employee_type !== null) {
+            $employee['employee_type'] = $employee_type;
         }
         $employee['updated_at'] = date('Y-m-d\TH:i:s');
         
