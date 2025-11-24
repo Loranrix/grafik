@@ -10,7 +10,11 @@ require_once __DIR__ . '/../classes/Admin.php';
 
 include 'header.php';
 
-$db = Database::getInstance();
+try {
+    $db = Database::getInstance();
+} catch (Exception $e) {
+    die('Erreur de connexion à la base de données : ' . $e->getMessage());
+}
 
 // Gerer les actions
 $message = '';
@@ -38,9 +42,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
+// URL correcte par défaut
+$correct_url = 'https://grafik.napopizza.lv/employee/';
+
 // Recuperer l'URL du QR code si elle existe
-$qr_url = $db->fetchOne("SELECT value FROM settings WHERE `key` = 'general_qr_url'");
-$qr_url = $qr_url ? $qr_url['value'] : '';
+try {
+    $qr_url = $db->fetchOne("SELECT value FROM settings WHERE `key` = 'general_qr_url'");
+    $qr_url = $qr_url ? $qr_url['value'] : '';
+} catch (Exception $e) {
+    error_log("Erreur récupération URL QR code: " . $e->getMessage());
+    $qr_url = '';
+    $error = 'Erreur lors de la récupération de l\'URL. La table settings existe-t-elle ?';
+}
+
+// Corriger automatiquement l'URL si elle est incorrecte ou vide
+if (empty($qr_url) || $qr_url !== $correct_url) {
+    try {
+        $old_url = $qr_url;
+        $db->query(
+            "INSERT INTO settings (`key`, value) VALUES ('general_qr_url', ?) 
+             ON DUPLICATE KEY UPDATE value = ?",
+            [$correct_url, $correct_url]
+        );
+        $qr_url = $correct_url;
+        // Afficher un message si l'URL a été corrigée
+        if ($old_url !== $correct_url) {
+            $message = '✅ URL du QR code corrigée automatiquement : ' . htmlspecialchars($old_url ?: 'vide') . ' → ' . htmlspecialchars($correct_url);
+        }
+    } catch (Exception $e) {
+        error_log("Erreur correction URL QR code: " . $e->getMessage());
+        $error = 'Erreur lors de la correction automatique de l\'URL : ' . $e->getMessage();
+    }
+}
 ?>
 
 <div class="container">
@@ -81,7 +114,8 @@ $qr_url = $qr_url ? $qr_url['value'] : '';
                                required 
                                style="font-size: 16px; padding: 15px;">
                         <small style="color: #7f8c8d; display: block; margin-top: 8px;">
-                            Cette URL sera encodee dans le QR code
+                            ⚠️ <strong>Important :</strong> Utilisez l'URL directe (sans service de redirection comme mrqrcode.mobi, bit.ly, etc.)
+                            <br>Cette URL sera encodée directement dans le QR code, sans passer par un service externe.
                         </small>
                     </div>
                     
@@ -96,9 +130,14 @@ $qr_url = $qr_url ? $qr_url['value'] : '';
                 <h2 style="color: #27ae60; margin-bottom: 20px;">✅ QR Code General Actif</h2>
                 
                 <div style="background: white; padding: 30px; border-radius: 12px; display: inline-block; box-shadow: 0 4px 16px rgba(0,0,0,0.1);">
+                    <!-- QR Code généré directement avec l'URL, sans service de redirection -->
                     <img src="https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=<?= urlencode($qr_url) ?>" 
                          alt="QR Code General"
-                         style="max-width: 100%; border: 2px solid #27ae60; border-radius: 8px;">
+                         style="max-width: 100%; border: 2px solid #27ae60; border-radius: 8px;"
+                         onerror="this.onerror=null; this.src='https://api.qrserver.com/v1/create-qr-code/?size=400x400&data='+encodeURIComponent('<?= addslashes($qr_url) ?>');">
+                    <p style="margin-top: 15px; font-size: 12px; color: #7f8c8d; text-align: center;">
+                        ✅ Ce QR code pointe directement vers l'URL, sans service de redirection externe
+                    </p>
                 </div>
                 
                 <div style="margin: 30px 0; padding: 20px; background: #ecf0f1; border-radius: 8px; max-width: 600px; margin: 30px auto;">
