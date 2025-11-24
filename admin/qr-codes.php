@@ -16,6 +16,86 @@ try {
     die('Erreur de connexion à la base de données : ' . $e->getMessage());
 }
 
+// Fonction pour obtenir la valeur d'un setting (compatible avec les deux structures)
+function getSetting($db, $key) {
+    try {
+        // Essayer d'abord avec la structure simple (key, value)
+        $result = $db->fetchOne("SELECT value FROM settings WHERE `key` = ?", [$key]);
+        if ($result) {
+            return $result['value'];
+        }
+    } catch (Exception $e) {
+        // Si ça échoue, essayer avec la structure complète (setting_key, setting_value)
+        try {
+            $result = $db->fetchOne("SELECT setting_value FROM settings WHERE setting_key = ?", [$key]);
+            if ($result) {
+                return $result['setting_value'];
+            }
+        } catch (Exception $e2) {
+            error_log("Erreur récupération setting: " . $e2->getMessage());
+        }
+    }
+    return null;
+}
+
+// Fonction pour sauvegarder un setting (compatible avec les deux structures)
+function setSetting($db, $key, $value) {
+    try {
+        // Essayer d'abord avec la structure simple
+        $db->query(
+            "INSERT INTO settings (`key`, value) VALUES (?, ?) 
+             ON DUPLICATE KEY UPDATE value = ?",
+            [$key, $value, $value]
+        );
+        return true;
+    } catch (Exception $e) {
+        // Si ça échoue, essayer avec la structure complète
+        try {
+            $db->query(
+                "INSERT INTO settings (setting_key, setting_value) VALUES (?, ?) 
+                 ON DUPLICATE KEY UPDATE setting_value = ?",
+                [$key, $value, $value]
+            );
+            return true;
+        } catch (Exception $e2) {
+            // Si les deux échouent, créer la table avec la structure simple
+            try {
+                $db->query("
+                    CREATE TABLE IF NOT EXISTS settings (
+                        `key` VARCHAR(255) PRIMARY KEY,
+                        value TEXT
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+                ");
+                $db->query(
+                    "INSERT INTO settings (`key`, value) VALUES (?, ?) 
+                     ON DUPLICATE KEY UPDATE value = ?",
+                    [$key, $value, $value]
+                );
+                return true;
+            } catch (Exception $e3) {
+                error_log("Erreur création/sauvegarde setting: " . $e3->getMessage());
+                throw $e3;
+            }
+        }
+    }
+}
+
+// Fonction pour supprimer un setting
+function deleteSetting($db, $key) {
+    try {
+        $db->query("DELETE FROM settings WHERE `key` = ?", [$key]);
+        return true;
+    } catch (Exception $e) {
+        try {
+            $db->query("DELETE FROM settings WHERE setting_key = ?", [$key]);
+            return true;
+        } catch (Exception $e2) {
+            error_log("Erreur suppression setting: " . $e2->getMessage());
+            throw $e2;
+        }
+    }
+}
+
 // Gerer les actions
 $message = '';
 $error = '';
@@ -28,50 +108,60 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (empty($url)) {
             $error = 'Veuillez entrer une URL valide';
         } else {
-            // Enregistrer dans settings
-            $db->query(
-                "INSERT INTO settings (`key`, value) VALUES ('general_qr_url', ?) 
-                 ON DUPLICATE KEY UPDATE value = ?",
-                [$url, $url]
-            );
-            $message = 'QR Code general genere avec succes !';
+            try {
+                setSetting($db, 'general_qr_url', $url);
+                // Redirection pour éviter le re-soumission du formulaire
+                header('Location: qr-codes.php?success=1');
+                exit;
+            } catch (Exception $e) {
+                error_log("Erreur génération QR code: " . $e->getMessage());
+                $error = 'Erreur lors de la génération : ' . htmlspecialchars($e->getMessage());
+            }
         }
     } elseif ($action === 'delete_qr') {
-        $db->query("DELETE FROM settings WHERE `key` = 'general_qr_url'");
-        $message = 'QR Code general supprime';
+        try {
+            deleteSetting($db, 'general_qr_url');
+            header('Location: qr-codes.php?deleted=1');
+            exit;
+        } catch (Exception $e) {
+            error_log("Erreur suppression QR code: " . $e->getMessage());
+            $error = 'Erreur lors de la suppression : ' . htmlspecialchars($e->getMessage());
+        }
     }
+}
+
+// Gérer les messages de succès depuis l'URL
+if (isset($_GET['success'])) {
+    $message = 'QR Code general genere avec succes !';
+}
+if (isset($_GET['deleted'])) {
+    $message = 'QR Code general supprime';
 }
 
 // URL correcte par défaut
 $correct_url = 'https://grafik.napopizza.lv/employee/';
 
 // Recuperer l'URL du QR code si elle existe
-try {
-    $qr_url = $db->fetchOne("SELECT value FROM settings WHERE `key` = 'general_qr_url'");
-    $qr_url = $qr_url ? $qr_url['value'] : '';
-} catch (Exception $e) {
-    error_log("Erreur récupération URL QR code: " . $e->getMessage());
+$qr_url = getSetting($db, 'general_qr_url');
+if ($qr_url === null) {
     $qr_url = '';
-    $error = 'Erreur lors de la récupération de l\'URL. La table settings existe-t-elle ?';
 }
 
 // Corriger automatiquement l'URL si elle est incorrecte ou vide
 if (empty($qr_url) || $qr_url !== $correct_url) {
     try {
         $old_url = $qr_url;
-        $db->query(
-            "INSERT INTO settings (`key`, value) VALUES ('general_qr_url', ?) 
-             ON DUPLICATE KEY UPDATE value = ?",
-            [$correct_url, $correct_url]
-        );
+        setSetting($db, 'general_qr_url', $correct_url);
         $qr_url = $correct_url;
-        // Afficher un message si l'URL a été corrigée
-        if ($old_url !== $correct_url) {
+        // Afficher un message si l'URL a été corrigée (seulement si pas de message déjà)
+        if ($old_url !== $correct_url && empty($message)) {
             $message = '✅ URL du QR code corrigée automatiquement : ' . htmlspecialchars($old_url ?: 'vide') . ' → ' . htmlspecialchars($correct_url);
         }
     } catch (Exception $e) {
         error_log("Erreur correction URL QR code: " . $e->getMessage());
-        $error = 'Erreur lors de la correction automatique de l\'URL : ' . $e->getMessage();
+        if (empty($error)) {
+            $error = 'Erreur lors de la correction automatique de l\'URL : ' . htmlspecialchars($e->getMessage());
+        }
     }
 }
 ?>
