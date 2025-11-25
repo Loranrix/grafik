@@ -197,10 +197,13 @@ $employees = $employeeModel->getAll(false);
             
             <div class="form-group">
                 <label for="pin">PIN (4 chiffres)</label>
-                <input type="text" id="pin" name="pin" pattern="[0-9]{4}" maxlength="4" required>
+                <input type="text" id="pin" name="pin" pattern="[0-9]{4}" maxlength="4" required onblur="checkPinExists()">
+                <div id="pin-error" style="display: none; color: #e74c3c; margin-top: 5px; font-size: 13px;">
+                    ⚠️ Ce PIN est déjà utilisé. Veuillez choisir un autre PIN.
+                </div>
             </div>
             
-            <button type="submit" class="btn btn-primary">Enregistrer</button>
+            <button type="submit" class="btn btn-primary" id="submitBtn">Enregistrer</button>
         </form>
     </div>
 </div>
@@ -232,6 +235,10 @@ function openCreateModal() {
     document.getElementById('phone').value = '';
     document.getElementById('employee_type').value = 'Autre';
     document.getElementById('pin').value = '';
+    document.getElementById('pin-error').style.display = 'none';
+    document.getElementById('pin').style.borderColor = '';
+    document.getElementById('submitBtn').disabled = false;
+    pinExists = false;
     document.getElementById('employeeModal').classList.add('active');
 }
 
@@ -244,6 +251,10 @@ function editEmployee(emp) {
     document.getElementById('phone').value = emp.phone || '';
     document.getElementById('employee_type').value = emp.employee_type || 'Autre';
     document.getElementById('pin').value = emp.pin;
+    document.getElementById('pin-error').style.display = 'none';
+    document.getElementById('pin').style.borderColor = '';
+    document.getElementById('submitBtn').disabled = false;
+    pinExists = false;
     document.getElementById('employeeModal').classList.add('active');
 }
 
@@ -265,6 +276,65 @@ function showQR(qrCode, employeeName) {
 function closeQRModal() {
     document.getElementById('qrModal').classList.remove('active');
 }
+
+// Variable pour suivre si le PIN existe
+let pinExists = false;
+
+// Vérifier si le PIN existe déjà
+function checkPinExists() {
+    const pinInput = document.getElementById('pin');
+    const pinError = document.getElementById('pin-error');
+    const submitBtn = document.getElementById('submitBtn');
+    const employeeId = document.getElementById('employeeId').value;
+    const pin = pinInput.value.trim();
+    
+    // Réinitialiser l'erreur
+    pinError.style.display = 'none';
+    pinInput.style.borderColor = '';
+    pinExists = false;
+    submitBtn.disabled = false;
+    
+    // Vérifier seulement si le PIN a 4 chiffres
+    if (pin.length !== 4 || !/^\d{4}$/.test(pin)) {
+        return;
+    }
+    
+    // Vérifier via AJAX
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', 'check-pin.php', true);
+    xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+    xhr.onreadystatechange = function() {
+        if (xhr.readyState === 4 && xhr.status === 200) {
+            try {
+                const response = JSON.parse(xhr.responseText);
+                if (response.exists) {
+                    pinExists = true;
+                    pinError.style.display = 'block';
+                    pinInput.style.borderColor = '#e74c3c';
+                    pinInput.setCustomValidity('Ce PIN est déjà utilisé');
+                    submitBtn.disabled = true;
+                } else {
+                    pinExists = false;
+                    pinInput.style.borderColor = '#27ae60';
+                    pinInput.setCustomValidity('');
+                    submitBtn.disabled = false;
+                }
+            } catch (e) {
+                console.error('Erreur parsing JSON:', e);
+            }
+        }
+    };
+    xhr.send('pin=' + encodeURIComponent(pin) + '&exclude_id=' + encodeURIComponent(employeeId || ''));
+}
+
+// Empêcher la soumission si le PIN existe
+document.getElementById('employeeForm').addEventListener('submit', function(e) {
+    if (pinExists) {
+        e.preventDefault();
+        alert('Veuillez choisir un autre PIN. Ce PIN est déjà utilisé.');
+        return false;
+    }
+});
 
 // Fermer modal en cliquant à l'extérieur
 window.onclick = function(event) {

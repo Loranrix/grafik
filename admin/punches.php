@@ -16,47 +16,150 @@ $punchModel = new Punch();
 $message = '';
 $error = '';
 
-// Date sélectionnée
+// Fonction pour arrondir au 1/4 d'heure supérieur (pour arrivée)
+function roundUpQuarter($datetime) {
+    $timestamp = strtotime($datetime);
+    $minutes = (int)date('i', $timestamp);
+    $hours = (int)date('H', $timestamp);
+    
+    // Arrondir au quart supérieur
+    $rounded_minutes = ceil($minutes / 15) * 15;
+    if ($rounded_minutes >= 60) {
+        $hours++;
+        $rounded_minutes = 0;
+    }
+    
+    return date('Y-m-d H:i:s', mktime($hours, $rounded_minutes, 0, date('m', $timestamp), date('d', $timestamp), date('Y', $timestamp)));
+}
+
+// Fonction pour arrondir au 1/4 d'heure inférieur (pour départ)
+function roundDownQuarter($datetime) {
+    $timestamp = strtotime($datetime);
+    $minutes = (int)date('i', $timestamp);
+    $hours = (int)date('H', $timestamp);
+    
+    // Arrondir au quart inférieur
+    $rounded_minutes = floor($minutes / 15) * 15;
+    
+    return date('Y-m-d H:i:s', mktime($hours, $rounded_minutes, 0, date('m', $timestamp), date('d', $timestamp), date('Y', $timestamp)));
+}
+
+// Période sélectionnée
+$period_type = isset($_GET['period']) ? $_GET['period'] : 'day'; // day, week, month
 $selected_date = isset($_GET['date']) ? $_GET['date'] : date('Y-m-d');
+$selected_employee = isset($_GET['employee']) ? $_GET['employee'] : '';
+
+// Calculer les dates de début et fin selon la période
+$start_date = $selected_date;
+$end_date = $selected_date;
+
+if ($period_type === 'week') {
+    // Semaine : du lundi au dimanche
+    $day_of_week = date('w', strtotime($selected_date));
+    $monday_offset = ($day_of_week == 0) ? -6 : (1 - $day_of_week);
+    $start_date = date('Y-m-d', strtotime($selected_date . ' ' . $monday_offset . ' days'));
+    $end_date = date('Y-m-d', strtotime($start_date . ' +6 days'));
+} elseif ($period_type === 'month') {
+    // Mois : du 1er au dernier jour du mois
+    $start_date = date('Y-m-01', strtotime($selected_date));
+    $end_date = date('Y-m-t', strtotime($selected_date));
+}
 
 // Traiter les actions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
     
     if ($action === 'add_punch') {
-        $employee_id = intval($_POST['employee_id']);
+        $employee_id = trim($_POST['employee_id']); // Garder comme string pour Firebase
         $punch_type = $_POST['punch_type'];
         $punch_date = $_POST['punch_date'];
         $punch_time = $_POST['punch_time'];
         $punch_datetime = $punch_date . ' ' . $punch_time;
         
-        $punchModel->addManual($employee_id, $punch_type, $punch_datetime);
-        $message = 'Pointage ajouté avec succès';
+        try {
+            $punchModel->addManual($employee_id, $punch_type, $punch_datetime);
+            $message = 'Pointage ajouté avec succès';
+        } catch (Exception $e) {
+            $error = 'Erreur lors de l\'ajout du pointage : ' . $e->getMessage();
+        }
     } elseif ($action === 'update_punch') {
-        $punch_id = intval($_POST['punch_id']);
+        $punch_id = trim($_POST['punch_id']); // Garder comme string pour Firebase
         $punch_date = $_POST['punch_date'];
         $punch_time = $_POST['punch_time'];
         $punch_datetime = $punch_date . ' ' . $punch_time;
         $boxes_count = isset($_POST['boxes_count']) && $_POST['boxes_count'] !== '' ? intval($_POST['boxes_count']) : null;
         
-        $punchModel->update($punch_id, $punch_datetime, $boxes_count);
-        $message = 'Pointage modifié avec succès';
+        $result = $punchModel->update($punch_id, $punch_datetime, $boxes_count);
+        if ($result) {
+            $message = 'Pointage modifié avec succès';
+        } else {
+            $error = 'Erreur lors de la modification du pointage';
+        }
     } elseif ($action === 'delete_punch') {
-        $punch_id = intval($_POST['punch_id']);
-        $punchModel->delete($punch_id);
-        $message = 'Pointage supprimé avec succès';
+        $punch_id = trim($_POST['punch_id']); // Garder comme string pour Firebase
+        $result = $punchModel->delete($punch_id);
+        if ($result) {
+            $message = 'Pointage supprimé avec succès';
+        } else {
+            $error = 'Erreur lors de la suppression du pointage';
+        }
     }
 }
 
 $employees = $employeeModel->getAll(true);
-$punches = $punchModel->getAllByDate($selected_date);
 
-// Calculer les heures travaillées par employé pour la date sélectionnée
-$hours_by_employee = [];
+// Récupérer les pointages selon la période et l'employé sélectionné
+$all_punches_by_employee = [];
 foreach ($employees as $emp) {
-    $hours = $punchModel->calculateHours($emp['id'], $selected_date);
-    if ($hours > 0) {
-        $hours_by_employee[$emp['id']] = $hours;
+    if ($selected_employee && $emp['id'] !== $selected_employee) {
+        continue;
+    }
+    $punches = $punchModel->getByEmployeeDateRange($emp['id'], $start_date, $end_date);
+    if (!empty($punches)) {
+        $all_punches_by_employee[$emp['id']] = [
+            'employee' => $emp,
+            'punches' => $punches
+        ];
+    }
+}
+
+// Calculer les heures réelles et arrondies par employé
+$hours_by_employee = [];
+foreach ($all_punches_by_employee as $emp_id => $data) {
+    $emp = $data['employee'];
+    $punches = $data['punches'];
+    
+    $real_hours = 0;
+    $rounded_hours = 0;
+    $in_time = null;
+    $in_time_rounded = null;
+    
+    foreach ($punches as $punch) {
+        if ($punch['punch_type'] === 'in') {
+            $in_time = strtotime($punch['punch_datetime']);
+            $in_time_rounded = strtotime(roundUpQuarter($punch['punch_datetime']));
+        } elseif ($punch['punch_type'] === 'out' && $in_time !== null) {
+            $out_time = strtotime($punch['punch_datetime']);
+            $out_time_rounded = strtotime(roundDownQuarter($punch['punch_datetime']));
+            
+            // Heures réelles
+            $real_hours += ($out_time - $in_time) / 3600;
+            
+            // Heures arrondies
+            $rounded_hours += ($out_time_rounded - $in_time_rounded) / 3600;
+            
+            $in_time = null;
+            $in_time_rounded = null;
+        }
+    }
+    
+    if ($real_hours > 0 || $rounded_hours > 0) {
+        $hours_by_employee[$emp_id] = [
+            'employee' => $emp,
+            'real_hours' => round($real_hours, 2),
+            'rounded_hours' => round($rounded_hours, 2),
+            'punches' => $punches
+        ];
     }
 }
 ?>
@@ -75,33 +178,67 @@ foreach ($employees as $emp) {
     <div class="alert alert-error"><?= htmlspecialchars($error) ?></div>
     <?php endif; ?>
     
-    <!-- Sélecteur de date -->
+    <!-- Sélecteurs de période et employé -->
     <div class="card">
-        <form method="GET" style="display: flex; gap: 15px; align-items: center;">
-            <label for="date" style="font-weight: 600;">Date :</label>
-            <input type="date" id="date" name="date" value="<?= $selected_date ?>" style="padding: 10px; border: 2px solid #ddd; border-radius: 8px;">
+        <form method="GET" style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <label for="period" style="font-weight: 600;">Période :</label>
+                <select id="period" name="period" onchange="updateDateInput()" style="padding: 10px; border: 2px solid #ddd; border-radius: 8px;">
+                    <option value="day" <?= $period_type === 'day' ? 'selected' : '' ?>>Jour</option>
+                    <option value="week" <?= $period_type === 'week' ? 'selected' : '' ?>>Semaine</option>
+                    <option value="month" <?= $period_type === 'month' ? 'selected' : '' ?>>Mois</option>
+                </select>
+            </div>
+            
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <label for="date" style="font-weight: 600;">Date :</label>
+                <input type="date" id="date" name="date" value="<?= $selected_date ?>" style="padding: 10px; border: 2px solid #ddd; border-radius: 8px;">
+            </div>
+            
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <label for="employee" style="font-weight: 600;">Employé :</label>
+                <select id="employee" name="employee" style="padding: 10px; border: 2px solid #ddd; border-radius: 8px; min-width: 200px;">
+                    <option value="">Tous les employés</option>
+                    <?php foreach ($employees as $emp): ?>
+                    <option value="<?= $emp['id'] ?>" <?= $selected_employee === $emp['id'] ? 'selected' : '' ?>>
+                        <?= htmlspecialchars($emp['first_name'] . ' ' . $emp['last_name']) ?>
+                    </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            
             <button type="submit" class="btn btn-primary btn-sm">Afficher</button>
-            <a href="?date=<?= date('Y-m-d') ?>" class="btn btn-secondary btn-sm">Aujourd'hui</a>
+            <a href="?period=day&date=<?= date('Y-m-d') ?>" class="btn btn-secondary btn-sm">Aujourd'hui</a>
         </form>
     </div>
     
     <?php if (count($hours_by_employee) > 0): ?>
     <div class="card">
-        <h2>Heures travaillées le <?= date('d/m/Y', strtotime($selected_date)) ?></h2>
+        <h2>
+            <?php 
+            if ($period_type === 'day') {
+                echo 'Heures travaillées le ' . date('d/m/Y', strtotime($selected_date));
+            } elseif ($period_type === 'week') {
+                echo 'Heures travaillées du ' . date('d/m/Y', strtotime($start_date)) . ' au ' . date('d/m/Y', strtotime($end_date));
+            } else {
+                echo 'Heures travaillées - ' . date('F Y', strtotime($selected_date));
+            }
+            ?>
+        </h2>
         <table class="table">
             <thead>
                 <tr>
                     <th>Employé</th>
-                    <th>Heures travaillées</th>
+                    <th>Heures réelles</th>
+                    <th>Heures arrondies</th>
                 </tr>
             </thead>
             <tbody>
-                <?php foreach ($hours_by_employee as $emp_id => $hours): 
-                    $emp = $employeeModel->getById($emp_id);
-                ?>
+                <?php foreach ($hours_by_employee as $data): ?>
                 <tr>
-                    <td><?= htmlspecialchars($emp['first_name'] . ' ' . $emp['last_name']) ?></td>
-                    <td><strong><?= number_format($hours, 2) ?> h</strong></td>
+                    <td><?= htmlspecialchars($data['employee']['first_name'] . ' ' . $data['employee']['last_name']) ?></td>
+                    <td><strong><?= number_format($data['real_hours'], 2) ?> h</strong></td>
+                    <td><strong style="color: #27ae60;"><?= number_format($data['rounded_hours'], 2) ?> h</strong></td>
                 </tr>
                 <?php endforeach; ?>
             </tbody>
@@ -109,24 +246,39 @@ foreach ($employees as $emp) {
     </div>
     <?php endif; ?>
     
+    <!-- Détails des pointages par employé -->
+    <?php foreach ($hours_by_employee as $data): 
+        $emp = $data['employee'];
+        $punches = $data['punches'];
+    ?>
     <div class="card">
-        <h2>Liste des pointages - <?= date('d/m/Y', strtotime($selected_date)) ?></h2>
+        <h2>Pointages - <?= htmlspecialchars($emp['first_name'] . ' ' . $emp['last_name']) ?></h2>
         
-        <?php if (count($punches) > 0): ?>
         <table class="table">
             <thead>
                 <tr>
-                    <th>Employé</th>
+                    <th>Date</th>
                     <th>Type</th>
-                    <th>Heure</th>
+                    <th>Heure réelle</th>
+                    <th>Heure arrondie</th>
                     <th>Boîtes</th>
                     <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
-                <?php foreach ($punches as $punch): ?>
+                <?php 
+                $current_date = '';
+                foreach ($punches as $punch): 
+                    $punch_date = date('Y-m-d', strtotime($punch['punch_datetime']));
+                    $show_date = ($current_date !== $punch_date);
+                    $current_date = $punch_date;
+                ?>
                 <tr>
-                    <td><?= htmlspecialchars($punch['first_name'] . ' ' . $punch['last_name']) ?></td>
+                    <td>
+                        <?php if ($show_date): ?>
+                            <strong><?= date('d/m/Y', strtotime($punch_date)) ?></strong>
+                        <?php endif; ?>
+                    </td>
                     <td>
                         <?php if ($punch['punch_type'] === 'in'): ?>
                             <span style="color: #27ae60; font-weight: bold;">✓ Arrivée</span>
@@ -135,6 +287,17 @@ foreach ($employees as $emp) {
                         <?php endif; ?>
                     </td>
                     <td><?= date('H:i:s', strtotime($punch['punch_datetime'])) ?></td>
+                    <td>
+                        <?php 
+                        if ($punch['punch_type'] === 'in') {
+                            $rounded = roundUpQuarter($punch['punch_datetime']);
+                            echo '<strong style="color: #27ae60;">' . date('H:i', strtotime($rounded)) . '</strong>';
+                        } else {
+                            $rounded = roundDownQuarter($punch['punch_datetime']);
+                            echo '<strong style="color: #e74c3c;">' . date('H:i', strtotime($rounded)) . '</strong>';
+                        }
+                        ?>
+                    </td>
                     <td>
                         <?php if (isset($punch['boxes_count']) && $punch['boxes_count'] !== null): ?>
                             <span style="color: #e74c3c; font-weight: bold;"><?= intval($punch['boxes_count']) ?></span>
@@ -158,10 +321,14 @@ foreach ($employees as $emp) {
                 <?php endforeach; ?>
             </tbody>
         </table>
-        <?php else: ?>
-        <p style="color: #999; text-align: center; padding: 20px;">Aucun pointage pour cette date</p>
-        <?php endif; ?>
     </div>
+    <?php endforeach; ?>
+    
+    <?php if (count($hours_by_employee) === 0): ?>
+    <div class="card">
+        <p style="color: #999; text-align: center; padding: 20px;">Aucun pointage pour cette période</p>
+    </div>
+    <?php endif; ?>
 </div>
 
 <!-- Modal Modifier Pointage -->
@@ -240,6 +407,25 @@ foreach ($employees as $emp) {
 </div>
 
 <script>
+function updateDateInput() {
+    const period = document.getElementById('period').value;
+    const dateInput = document.getElementById('date');
+    
+    if (period === 'month') {
+        // Pour le mois, on affiche le premier jour du mois
+        const today = new Date();
+        const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+        dateInput.value = firstDay.toISOString().split('T')[0];
+    } else if (period === 'week') {
+        // Pour la semaine, on affiche le lundi de la semaine en cours
+        const today = new Date();
+        const day = today.getDay();
+        const diff = today.getDate() - day + (day === 0 ? -6 : 1); // Ajuster pour lundi
+        const monday = new Date(today.setDate(diff));
+        dateInput.value = monday.toISOString().split('T')[0];
+    }
+}
+
 function openAddPunchModal() {
     document.getElementById('addPunchModal').classList.add('active');
     // Définir la date d'aujourd'hui par défaut
