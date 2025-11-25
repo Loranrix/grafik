@@ -271,9 +271,23 @@ foreach ($all_punches_by_employee as $emp_id => $data) {
     <?php foreach ($hours_by_employee as $data): 
         $emp = $data['employee'];
         $punches = $data['punches'];
+        $total_real = $data['real_hours'];
+        $total_paid = $data['rounded_hours'];
     ?>
     <div class="card">
-        <h2>Pointages - <?= htmlspecialchars($emp['first_name'] . ' ' . $emp['last_name']) ?></h2>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h2 style="margin: 0;">Pointages - <?= htmlspecialchars($emp['first_name'] . ' ' . $emp['last_name']) ?></h2>
+            <div style="display: flex; gap: 30px; align-items: center;">
+                <div style="text-align: right;">
+                    <div style="font-size: 12px; color: #666; margin-bottom: 5px;">TOTAL heures réelles</div>
+                    <div style="font-size: 20px; font-weight: bold; color: #333;"><?= number_format($total_real, 2) ?> h</div>
+                </div>
+                <div style="text-align: right;">
+                    <div style="font-size: 12px; color: #666; margin-bottom: 5px;">Heures payées</div>
+                    <div style="font-size: 20px; font-weight: bold; color: #27ae60;"><?= number_format($total_paid, 2) ?> h</div>
+                </div>
+            </div>
+        </div>
         
         <table class="table">
             <thead>
