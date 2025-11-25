@@ -161,14 +161,13 @@ foreach ($all_punches_by_employee as $emp_id => $data) {
         }
     }
     
-    if ($real_hours > 0 || $rounded_hours > 0) {
-        $hours_by_employee[$emp_id] = [
-            'employee' => $emp,
-            'real_hours' => round($real_hours, 2),
-            'rounded_hours' => round($rounded_hours, 2),
-            'punches' => $punches
-        ];
-    }
+    // Afficher même si pas d'heures calculées (pointages orphelins)
+    $hours_by_employee[$emp_id] = [
+        'employee' => $emp,
+        'real_hours' => round($real_hours, 2),
+        'rounded_hours' => round($rounded_hours, 2),
+        'punches' => $punches
+    ];
 }
 ?>
 
@@ -220,7 +219,7 @@ foreach ($all_punches_by_employee as $emp_id => $data) {
         </form>
     </div>
     
-    <?php if (count($hours_by_employee) > 0): ?>
+    <?php if (count($hours_by_employee) > 0 && array_sum(array_column($hours_by_employee, 'real_hours')) > 0): ?>
     <div class="card">
         <h2>
             <?php 
