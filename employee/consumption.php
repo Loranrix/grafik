@@ -56,11 +56,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $item_name = trim($_POST['item_name'] ?? '');
             $original_price = floatval($_POST['original_price'] ?? 0);
             
-            if (empty($item_name)) {
+            if (empty($item_name) && empty($free_drink)) {
                 $error = 'Lūdzu, ievadiet produkta nosaukumu vai izvēlieties bezmaksas dzērienu';
-            } elseif ($original_price <= 0) {
+            } elseif (!empty($item_name) && $original_price <= 0) {
                 $error = 'Lūdzu, ievadiet derīgu cenu';
-            } else {
+            } elseif (!empty($item_name)) {
                 $consumptionModel->add($employee_id, $item_name, $original_price, 50);
                 $message = 'Patēriņš pievienots!';
             }
@@ -109,41 +109,17 @@ $free_drinks_count_today = $consumptionModel->countFreeDrinksToday($employee_id)
             <form method="POST" class="consumption-form" id="consumptionForm">
                 <input type="hidden" name="action" value="add">
                 
-                <!-- Boissons gratuites (première fois) -->
-                <div class="form-group">
-                    <label style="font-weight: 600; margin-bottom: 10px; display: block;">Bezmaksas dzērieni (pirmā reize dienā - bez maksas):</label>
-                    <div style="display: flex; flex-direction: column; gap: 10px;">
-                        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 10px; border: 2px solid #ddd; border-radius: 8px;">
-                            <input type="radio" name="free_drink" value="Tēja" onchange="handleFreeDrinkChange()">
-                            <span>☕ Tēja</span>
-                        </label>
-                        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 10px; border: 2px solid #ddd; border-radius: 8px;">
-                            <input type="radio" name="free_drink" value="Kafija" onchange="handleFreeDrinkChange()">
-                            <span>☕ Kafija</span>
-                        </label>
-                        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 10px; border: 2px solid #ddd; border-radius: 8px;">
-                            <input type="radio" name="free_drink" value="Kafija ar pienu" onchange="handleFreeDrinkChange()">
-                            <span>☕ Kafija ar pienu</span>
-                        </label>
-                    </div>
-                    <small style="color: #7f8c8d; display: block; margin-top: 5px;">
-                        Pirmā reize dienā - bez maksas. No otrās reizes - jāmaksā ar 50% atlaidi.
-                    </small>
-                </div>
-                
-                <div style="text-align: center; margin: 15px 0; color: #999;">VAI</div>
-                
-                <!-- Consommation normale -->
+                <!-- Consommation normale (formulaire original) -->
                 <div class="form-group">
                     <label for="item_name">Produkta nosaukums</label>
                     <input type="text" 
                            id="item_name" 
                            name="item_name" 
-                           placeholder="Piemēram: Sendviča, Sula, u.c."
+                           placeholder="Piemēram: Kafija, Sendviča, Sula"
                            autocomplete="off">
                 </div>
                 
-                <div class="form-group" id="priceGroup" style="display: none;">
+                <div class="form-group">
                     <label for="original_price">Pilna cena (€)</label>
                     <input type="number" 
                            id="original_price" 
@@ -158,9 +134,35 @@ $free_drinks_count_today = $consumptionModel->countFreeDrinksToday($employee_id)
                     </small>
                 </div>
                 
-                <button type="submit" class="btn btn-primary btn-large">
-                    ✓ Pievienot
-                </button>
+                <div style="margin: 20px 0; border-top: 2px solid #ddd; padding-top: 20px;">
+                    <label style="font-weight: 600; margin-bottom: 15px; display: block;">Bezmaksas dzērieni (pirmā reize dienā - bez maksas):</label>
+                    <div style="display: flex; flex-direction: column; gap: 10px;">
+                        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 12px; border: 2px solid #ddd; border-radius: 8px; background: #f9f9f9;">
+                            <input type="radio" name="free_drink" value="Tēja" onchange="handleFreeDrinkChange()">
+                            <span style="font-size: 16px;">☕ Tēja</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 12px; border: 2px solid #ddd; border-radius: 8px; background: #f9f9f9;">
+                            <input type="radio" name="free_drink" value="Kafija" onchange="handleFreeDrinkChange()">
+                            <span style="font-size: 16px;">☕ Kafija</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 12px; border: 2px solid #ddd; border-radius: 8px; background: #f9f9f9;">
+                            <input type="radio" name="free_drink" value="Kafija ar pienu" onchange="handleFreeDrinkChange()">
+                            <span style="font-size: 16px;">☕ Kafija ar pienu</span>
+                        </label>
+                    </div>
+                    <small style="color: #7f8c8d; display: block; margin-top: 10px;">
+                        Pirmā reize dienā - bez maksas. No otrās reizes - jāmaksā ar 50% atlaidi.
+                    </small>
+                </div>
+                
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button type="submit" class="btn btn-primary btn-large" style="flex: 1;">
+                        ✓ OK
+                    </button>
+                    <a href="actions.php" class="btn btn-secondary btn-large" style="flex: 1; text-align: center; text-decoration: none;">
+                        ← Atpakaļ
+                    </a>
+                </div>
             </form>
         </div>
         
@@ -168,7 +170,6 @@ $free_drinks_count_today = $consumptionModel->countFreeDrinksToday($employee_id)
         function handleFreeDrinkChange() {
             const freeDrinkSelected = document.querySelector('input[name="free_drink"]:checked');
             const itemNameInput = document.getElementById('item_name');
-            const priceGroup = document.getElementById('priceGroup');
             const priceInput = document.getElementById('original_price');
             
             if (freeDrinkSelected) {
@@ -181,25 +182,35 @@ $free_drinks_count_today = $consumptionModel->countFreeDrinksToday($employee_id)
                 
                 if (freeDrinksCount >= 1) {
                     // C'est la deuxième fois ou plus, demander le prix
-                    priceGroup.style.display = 'block';
                     priceInput.required = true;
+                    priceInput.min = "0.01";
                 } else {
                     // Première fois, gratuit
-                    priceGroup.style.display = 'none';
                     priceInput.required = false;
-                    priceInput.value = '';
+                    priceInput.value = '0';
+                    priceInput.min = "0";
                 }
             } else {
-                // Aucune boisson gratuite sélectionnée
-                itemNameInput.required = true;
-                priceGroup.style.display = 'block';
-                priceInput.required = true;
+                // Aucune boisson gratuite sélectionnée, formulaire normal
+                itemNameInput.required = false; // Pas obligatoire si on peut choisir une boisson
+                priceInput.required = false; // Pas obligatoire si c'est une boisson gratuite
+                priceInput.min = "0.01";
             }
         }
         
         // Réinitialiser si on tape dans le champ item_name
         document.getElementById('item_name').addEventListener('input', function() {
             if (this.value.trim() !== '') {
+                document.querySelectorAll('input[name="free_drink"]').forEach(radio => {
+                    radio.checked = false;
+                });
+                handleFreeDrinkChange();
+            }
+        });
+        
+        // Réinitialiser si on tape dans le champ prix
+        document.getElementById('original_price').addEventListener('input', function() {
+            if (this.value.trim() !== '' && parseFloat(this.value) > 0) {
                 document.querySelectorAll('input[name="free_drink"]').forEach(radio => {
                     radio.checked = false;
                 });
