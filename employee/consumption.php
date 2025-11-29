@@ -52,15 +52,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $message = 'Patēriņš pievienots!';
             }
         } else {
-            // Consommation normale
+            // Consommation normale (plat)
             $item_name = trim($_POST['item_name'] ?? '');
             $original_price = floatval($_POST['original_price'] ?? 0);
             
-            if (empty($item_name) && empty($free_drink)) {
+            // Vérifier qu'on a soit un plat, soit une boisson (déjà géré au-dessus)
+            if (empty($item_name)) {
+                // Pas de plat et pas de boisson sélectionnée
                 $error = 'Lūdzu, ievadiet produkta nosaukumu vai izvēlieties bezmaksas dzērienu';
-            } elseif (!empty($item_name) && $original_price <= 0) {
+            } elseif ($original_price <= 0) {
                 $error = 'Lūdzu, ievadiet derīgu cenu';
-            } elseif (!empty($item_name)) {
+            } else {
                 $consumptionModel->add($employee_id, $item_name, $original_price, 50);
                 $message = 'Patēriņš pievienots!';
             }
@@ -124,11 +126,11 @@ $free_drinks_count_today = $consumptionModel->countFreeDrinksToday($employee_id)
                 
                 <!-- Consommation normale (formulaire original) -->
                 <div class="form-group">
-                    <label for="item_name">Produkta nosaukums</label>
+                    <label for="item_name">Produkta nosaukums (nav obligāts, ja izvēlaties dzērienu)</label>
                     <input type="text" 
                            id="item_name" 
                            name="item_name" 
-                           placeholder="Piemēram: Kafija, Sendviča, Sula"
+                           placeholder="Piemēram: Sendviča, Sula, u.c."
                            autocomplete="off">
                 </div>
                 
@@ -185,8 +187,10 @@ $free_drinks_count_today = $consumptionModel->countFreeDrinksToday($employee_id)
             const itemNameInput = document.getElementById('item_name');
             const priceInput = document.getElementById('original_price');
             
-            // Si les champs sont déjà remplis, désélectionner la boisson
-            if (freeDrinkSelected && (itemNameInput.value.trim() !== '' || (priceInput.value.trim() !== '' && parseFloat(priceInput.value) > 0))) {
+            // Si les champs sont déjà remplis ET qu'on sélectionne une boisson, désélectionner la boisson
+            // Mais permettre de prendre juste une boisson sans plat
+            if (freeDrinkSelected && itemNameInput.value.trim() !== '') {
+                // Si un plat est déjà saisi, désélectionner la boisson
                 freeDrinkSelected.checked = false;
                 return;
             }
@@ -241,9 +245,11 @@ $free_drinks_count_today = $consumptionModel->countFreeDrinksToday($employee_id)
             }
         });
         
-        // Désélectionner la boisson si on tape dans le champ prix
+        // Désélectionner la boisson si on tape dans le champ prix (seulement si c'est pour un plat)
         document.getElementById('original_price').addEventListener('input', function() {
-            if (this.value.trim() !== '' && parseFloat(this.value) > 0) {
+            const freeDrinkSelected = document.querySelector('input[name="free_drink"]:checked');
+            if (this.value.trim() !== '' && parseFloat(this.value) > 0 && !freeDrinkSelected) {
+                // Si on tape un prix et qu'aucune boisson n'est sélectionnée, c'est pour un plat
                 document.querySelectorAll('input[name="free_drink"]').forEach(radio => {
                     radio.checked = false;
                 });
@@ -251,22 +257,39 @@ $free_drinks_count_today = $consumptionModel->countFreeDrinksToday($employee_id)
             }
         });
         
-        // Désélectionner la boisson si on clique sur les champs
-        document.getElementById('item_name').addEventListener('focus', function() {
-            if (this.value.trim() === '') {
-                document.querySelectorAll('input[name="free_drink"]').forEach(radio => {
-                    radio.checked = false;
-                });
-                handleFreeDrinkChange();
+        // Validation du formulaire avant soumission
+        document.getElementById('consumptionForm').addEventListener('submit', function(e) {
+            const freeDrinkSelected = document.querySelector('input[name="free_drink"]:checked');
+            const itemNameInput = document.getElementById('item_name');
+            const priceInput = document.getElementById('original_price');
+            
+            // Si une boisson est sélectionnée, on peut soumettre (le prix sera géré côté serveur)
+            if (freeDrinkSelected) {
+                const freeDrinksCount = <?= $free_drinks_count_today ?>;
+                // Si c'est la 2ème boisson ou plus, le prix est obligatoire
+                if (freeDrinksCount >= 1 && (priceInput.value.trim() === '' || parseFloat(priceInput.value) <= 0)) {
+                    e.preventDefault();
+                    alert('Lūdzu, ievadiet cenu (no otrās reizes jāmaksā)');
+                    priceInput.focus();
+                    return false;
+                }
+                // Sinon, on peut soumettre (première boisson = gratuit)
+                return true;
             }
-        });
-        
-        document.getElementById('original_price').addEventListener('focus', function() {
-            if (this.value.trim() === '' || parseFloat(this.value) === 0) {
-                document.querySelectorAll('input[name="free_drink"]').forEach(radio => {
-                    radio.checked = false;
-                });
-                handleFreeDrinkChange();
+            
+            // Si pas de boisson, il faut un plat avec prix
+            if (itemNameInput.value.trim() === '') {
+                e.preventDefault();
+                alert('Lūdzu, ievadiet produkta nosaukumu vai izvēlieties bezmaksas dzērienu');
+                itemNameInput.focus();
+                return false;
+            }
+            
+            if (priceInput.value.trim() === '' || parseFloat(priceInput.value) <= 0) {
+                e.preventDefault();
+                alert('Lūdzu, ievadiet derīgu cenu');
+                priceInput.focus();
+                return false;
             }
         });
         </script>
