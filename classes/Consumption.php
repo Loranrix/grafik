@@ -52,11 +52,20 @@ class Consumption {
         
         // Si c'est une boisson gratuite et c'est le premier du jour → gratuit
         if ($is_free_drink && $free_drinks_count === 0) {
+            // Première boisson gratuite : forcer à 0 même si un prix a été fourni
             $original_price = 0;
             $discounted_price = 0;
             $discount_percent = 0;
+        } elseif ($is_free_drink && $free_drinks_count >= 1) {
+            // Deuxième boisson gratuite ou plus : doit être payante avec -50%
+            // Le prix DOIT être fourni et > 0 (vérifié avant dans employee/consumption.php)
+            if ($original_price <= 0) {
+                // Si le prix n'a pas été fourni ou est 0, on ne peut pas continuer
+                return false; // Retourner false au lieu de lancer une exception
+            }
+            $discounted_price = $original_price * (1 - $discount_percent / 100);
         } else {
-            // Sinon, appliquer la réduction normale
+            // Consommation normale : appliquer la réduction normale
             $discounted_price = $original_price * (1 - $discount_percent / 100);
         }
         

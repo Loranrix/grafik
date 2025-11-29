@@ -132,7 +132,7 @@ $free_drinks_count_today = $consumptionModel->countFreeDrinksToday($employee_id)
                            autocomplete="off">
                 </div>
                 
-                <div class="form-group">
+                <div class="form-group" id="priceGroup">
                     <label for="original_price">Pilna cena (€)</label>
                     <input type="number" 
                            id="original_price" 
@@ -142,7 +142,7 @@ $free_drinks_count_today = $consumptionModel->countFreeDrinksToday($employee_id)
                            placeholder="Piemēram: 5.00"
                            inputmode="decimal"
                            pattern="[0-9]*\.?[0-9]*">
-                    <small style="color: #7f8c8d; display: block; margin-top: 5px;">
+                    <small style="color: #7f8c8d; display: block; margin-top: 5px;" id="priceHelp">
                         50% atlaide tiks piemērota automātiski
                     </small>
                 </div>
@@ -197,23 +197,37 @@ $free_drinks_count_today = $consumptionModel->countFreeDrinksToday($employee_id)
                 
                 // Vérifier combien de boissons gratuites ont déjà été consommées aujourd'hui
                 const freeDrinksCount = <?= $free_drinks_count_today ?>;
+                const priceGroup = document.getElementById('priceGroup');
+                const priceHelp = document.getElementById('priceHelp');
                 
                 if (freeDrinksCount >= 1) {
                     // C'est la deuxième fois ou plus, demander le prix
+                    priceGroup.style.display = 'block';
                     priceInput.required = true;
                     priceInput.min = "0.01";
                     priceInput.value = '';
+                    priceInput.style.border = '2px solid #e74c3c';
+                    priceHelp.textContent = '⚠️ No otrās reizes jāmaksā! Lūdzu, ievadiet cenu.';
+                    priceHelp.style.color = '#e74c3c';
                 } else {
                     // Première fois, gratuit
+                    priceGroup.style.display = 'none';
                     priceInput.required = false;
                     priceInput.value = '0';
                     priceInput.min = "0";
+                    priceInput.style.border = '';
                 }
             } else {
                 // Aucune boisson gratuite sélectionnée, formulaire normal
                 itemNameInput.required = false;
+                const priceGroup = document.getElementById('priceGroup');
+                priceGroup.style.display = 'block';
                 priceInput.required = false;
                 priceInput.min = "0.01";
+                priceInput.style.border = '';
+                const priceHelp = document.getElementById('priceHelp');
+                priceHelp.textContent = '50% atlaide tiks piemērota automātiski';
+                priceHelp.style.color = '#7f8c8d';
             }
         }
         
