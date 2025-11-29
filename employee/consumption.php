@@ -88,6 +88,19 @@ $free_drinks_count_today = $consumptionModel->countFreeDrinksToday($employee_id)
     <meta name="apple-mobile-web-app-capable" content="yes">
     <title>Grafik - Patēriņš</title>
     <link rel="stylesheet" href="../css/employee.css">
+    <style>
+        /* Permettre le scroll sur la page consommation */
+        body {
+            position: relative !important;
+            overflow-y: auto !important;
+            overflow-x: hidden !important;
+            min-height: 100vh;
+            height: auto;
+        }
+        .container {
+            margin: 20px auto;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
@@ -172,9 +185,14 @@ $free_drinks_count_today = $consumptionModel->countFreeDrinksToday($employee_id)
             const itemNameInput = document.getElementById('item_name');
             const priceInput = document.getElementById('original_price');
             
+            // Si les champs sont déjà remplis, désélectionner la boisson
+            if (freeDrinkSelected && (itemNameInput.value.trim() !== '' || (priceInput.value.trim() !== '' && parseFloat(priceInput.value) > 0))) {
+                freeDrinkSelected.checked = false;
+                return;
+            }
+            
             if (freeDrinkSelected) {
-                // Une boisson gratuite est sélectionnée
-                itemNameInput.value = '';
+                // Une boisson gratuite est sélectionnée (et les champs sont vides)
                 itemNameInput.required = false;
                 
                 // Vérifier combien de boissons gratuites ont déjà été consommées aujourd'hui
@@ -184,6 +202,7 @@ $free_drinks_count_today = $consumptionModel->countFreeDrinksToday($employee_id)
                     // C'est la deuxième fois ou plus, demander le prix
                     priceInput.required = true;
                     priceInput.min = "0.01";
+                    priceInput.value = '';
                 } else {
                     // Première fois, gratuit
                     priceInput.required = false;
@@ -192,13 +211,13 @@ $free_drinks_count_today = $consumptionModel->countFreeDrinksToday($employee_id)
                 }
             } else {
                 // Aucune boisson gratuite sélectionnée, formulaire normal
-                itemNameInput.required = false; // Pas obligatoire si on peut choisir une boisson
-                priceInput.required = false; // Pas obligatoire si c'est une boisson gratuite
+                itemNameInput.required = false;
+                priceInput.required = false;
                 priceInput.min = "0.01";
             }
         }
         
-        // Réinitialiser si on tape dans le champ item_name
+        // Désélectionner la boisson si on tape dans le champ item_name
         document.getElementById('item_name').addEventListener('input', function() {
             if (this.value.trim() !== '') {
                 document.querySelectorAll('input[name="free_drink"]').forEach(radio => {
@@ -208,9 +227,28 @@ $free_drinks_count_today = $consumptionModel->countFreeDrinksToday($employee_id)
             }
         });
         
-        // Réinitialiser si on tape dans le champ prix
+        // Désélectionner la boisson si on tape dans le champ prix
         document.getElementById('original_price').addEventListener('input', function() {
             if (this.value.trim() !== '' && parseFloat(this.value) > 0) {
+                document.querySelectorAll('input[name="free_drink"]').forEach(radio => {
+                    radio.checked = false;
+                });
+                handleFreeDrinkChange();
+            }
+        });
+        
+        // Désélectionner la boisson si on clique sur les champs
+        document.getElementById('item_name').addEventListener('focus', function() {
+            if (this.value.trim() === '') {
+                document.querySelectorAll('input[name="free_drink"]').forEach(radio => {
+                    radio.checked = false;
+                });
+                handleFreeDrinkChange();
+            }
+        });
+        
+        document.getElementById('original_price').addEventListener('focus', function() {
+            if (this.value.trim() === '' || parseFloat(this.value) === 0) {
                 document.querySelectorAll('input[name="free_drink"]').forEach(radio => {
                     radio.checked = false;
                 });
