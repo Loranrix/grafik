@@ -15,12 +15,50 @@ class Consumption {
     }
 
     /**
+     * Vérifier si un item est une boisson gratuite (Tea, Coffee, Coffee with milk)
+     */
+    private function isFreeDrink($item_name) {
+        $free_drinks = ['Tēja', 'Kafija', 'Kafija ar pienu'];
+        return in_array($item_name, $free_drinks);
+    }
+
+    /**
+     * Compter les consommations gratuites du jour pour un employé
+     */
+    public function countFreeDrinksToday($employee_id) {
+        $today = date('Y-m-d');
+        $consumptions = $this->getForEmployeePeriod($employee_id, $today, $today);
+        
+        $count = 0;
+        foreach ($consumptions as $consumption) {
+            if ($this->isFreeDrink($consumption['item_name'] ?? '')) {
+                $count++;
+            }
+        }
+        
+        return $count;
+    }
+
+    /**
      * Ajouter une consommation
      */
     public function add($employee_id, $item_name, $original_price, $discount_percent = 50) {
-        $discounted_price = $original_price * (1 - $discount_percent / 100);
         $consumption_date = date('Y-m-d');
         $consumption_time = date('H:i:s');
+        
+        // Vérifier si c'est une boisson gratuite
+        $is_free_drink = $this->isFreeDrink($item_name);
+        $free_drinks_count = $this->countFreeDrinksToday($employee_id);
+        
+        // Si c'est une boisson gratuite et c'est le premier du jour → gratuit
+        if ($is_free_drink && $free_drinks_count === 0) {
+            $original_price = 0;
+            $discounted_price = 0;
+            $discount_percent = 0;
+        } else {
+            // Sinon, appliquer la réduction normale
+            $discounted_price = $original_price * (1 - $discount_percent / 100);
+        }
         
         $consumption_id = $this->firebase->generateConsumptionId();
         

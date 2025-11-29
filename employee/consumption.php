@@ -28,16 +28,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
     
     if ($action === 'add') {
-        $item_name = trim($_POST['item_name']);
-        $original_price = floatval($_POST['original_price']);
+        // Vérifier si c'est une boisson gratuite sélectionnée
+        $free_drink = $_POST['free_drink'] ?? '';
+        $free_drinks = ['Tēja', 'Kafija', 'Kafija ar pienu'];
         
-        if (empty($item_name)) {
-            $error = 'Lūdzu, ievadiet produkta nosaukumu';
-        } elseif ($original_price <= 0) {
-            $error = 'Lūdzu, ievadiet derīgu cenu';
+        if (!empty($free_drink) && in_array($free_drink, $free_drinks)) {
+            // C'est une boisson gratuite
+            $item_name = $free_drink;
+            $free_drinks_count = $consumptionModel->countFreeDrinksToday($employee_id);
+            
+            // Si c'est le premier → gratuit, sinon demander le prix
+            if ($free_drinks_count === 0) {
+                $original_price = 0;
+            } else {
+                $original_price = floatval($_POST['original_price'] ?? 0);
+                if ($original_price <= 0) {
+                    $error = 'Lūdzu, ievadiet derīgu cenu (no otrās reizes jāmaksā)';
+                }
+            }
+            
+            if (empty($error)) {
+                $consumptionModel->add($employee_id, $item_name, $original_price, 50);
+                $message = 'Patēriņš pievienots!';
+            }
         } else {
-            $consumptionModel->add($employee_id, $item_name, $original_price, 50);
-            $message = 'Patēriņš pievienots!';
+            // Consommation normale
+            $item_name = trim($_POST['item_name'] ?? '');
+            $original_price = floatval($_POST['original_price'] ?? 0);
+            
+            if (empty($item_name)) {
+                $error = 'Lūdzu, ievadiet produkta nosaukumu vai izvēlieties bezmaksas dzērienu';
+            } elseif ($original_price <= 0) {
+                $error = 'Lūdzu, ievadiet derīgu cenu';
+            } else {
+                $consumptionModel->add($employee_id, $item_name, $original_price, 50);
+                $message = 'Patēriņš pievienots!';
+            }
         }
     }
 }
@@ -49,6 +75,9 @@ $consumptions_month = $consumptionModel->getMonthForEmployee($employee_id, date(
 // Calculer les totaux
 $total_today = $consumptionModel->getTotalForPeriod($employee_id, date('Y-m-d'), date('Y-m-d'));
 $total_month = $consumptionModel->getTotalForPeriod($employee_id, date('Y-m-01'), date('Y-m-t'));
+
+// Compter les boissons gratuites consommées aujourd'hui
+$free_drinks_count_today = $consumptionModel->countFreeDrinksToday($employee_id);
 ?>
 <!DOCTYPE html>
 <html lang="lv">
@@ -77,20 +106,44 @@ $total_month = $consumptionModel->getTotalForPeriod($employee_id, date('Y-m-01')
         <!-- Formulaire d'ajout -->
         <div class="card" style="margin-bottom: 20px;">
             <h2>Pievienot patēriņu</h2>
-            <form method="POST" class="consumption-form">
+            <form method="POST" class="consumption-form" id="consumptionForm">
                 <input type="hidden" name="action" value="add">
                 
+                <!-- Boissons gratuites (première fois) -->
+                <div class="form-group">
+                    <label style="font-weight: 600; margin-bottom: 10px; display: block;">Bezmaksas dzērieni (pirmā reize dienā - bez maksas):</label>
+                    <div style="display: flex; flex-direction: column; gap: 10px;">
+                        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 10px; border: 2px solid #ddd; border-radius: 8px;">
+                            <input type="radio" name="free_drink" value="Tēja" onchange="handleFreeDrinkChange()">
+                            <span>☕ Tēja</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 10px; border: 2px solid #ddd; border-radius: 8px;">
+                            <input type="radio" name="free_drink" value="Kafija" onchange="handleFreeDrinkChange()">
+                            <span>☕ Kafija</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 10px; border: 2px solid #ddd; border-radius: 8px;">
+                            <input type="radio" name="free_drink" value="Kafija ar pienu" onchange="handleFreeDrinkChange()">
+                            <span>☕ Kafija ar pienu</span>
+                        </label>
+                    </div>
+                    <small style="color: #7f8c8d; display: block; margin-top: 5px;">
+                        Pirmā reize dienā - bez maksas. No otrās reizes - jāmaksā ar 50% atlaidi.
+                    </small>
+                </div>
+                
+                <div style="text-align: center; margin: 15px 0; color: #999;">VAI</div>
+                
+                <!-- Consommation normale -->
                 <div class="form-group">
                     <label for="item_name">Produkta nosaukums</label>
                     <input type="text" 
                            id="item_name" 
                            name="item_name" 
-                           placeholder="Piemēram: Kafija, Sendviča, Sula"
-                           required
+                           placeholder="Piemēram: Sendviča, Sula, u.c."
                            autocomplete="off">
                 </div>
                 
-                <div class="form-group">
+                <div class="form-group" id="priceGroup" style="display: none;">
                     <label for="original_price">Pilna cena (€)</label>
                     <input type="number" 
                            id="original_price" 
@@ -99,8 +152,7 @@ $total_month = $consumptionModel->getTotalForPeriod($employee_id, date('Y-m-01')
                            min="0.01"
                            placeholder="Piemēram: 5.00"
                            inputmode="decimal"
-                           pattern="[0-9]*\.?[0-9]*"
-                           required>
+                           pattern="[0-9]*\.?[0-9]*">
                     <small style="color: #7f8c8d; display: block; margin-top: 5px;">
                         50% atlaide tiks piemērota automātiski
                     </small>
@@ -111,6 +163,50 @@ $total_month = $consumptionModel->getTotalForPeriod($employee_id, date('Y-m-01')
                 </button>
             </form>
         </div>
+        
+        <script>
+        function handleFreeDrinkChange() {
+            const freeDrinkSelected = document.querySelector('input[name="free_drink"]:checked');
+            const itemNameInput = document.getElementById('item_name');
+            const priceGroup = document.getElementById('priceGroup');
+            const priceInput = document.getElementById('original_price');
+            
+            if (freeDrinkSelected) {
+                // Une boisson gratuite est sélectionnée
+                itemNameInput.value = '';
+                itemNameInput.required = false;
+                
+                // Vérifier combien de boissons gratuites ont déjà été consommées aujourd'hui
+                const freeDrinksCount = <?= $free_drinks_count_today ?>;
+                
+                if (freeDrinksCount >= 1) {
+                    // C'est la deuxième fois ou plus, demander le prix
+                    priceGroup.style.display = 'block';
+                    priceInput.required = true;
+                } else {
+                    // Première fois, gratuit
+                    priceGroup.style.display = 'none';
+                    priceInput.required = false;
+                    priceInput.value = '';
+                }
+            } else {
+                // Aucune boisson gratuite sélectionnée
+                itemNameInput.required = true;
+                priceGroup.style.display = 'block';
+                priceInput.required = true;
+            }
+        }
+        
+        // Réinitialiser si on tape dans le champ item_name
+        document.getElementById('item_name').addEventListener('input', function() {
+            if (this.value.trim() !== '') {
+                document.querySelectorAll('input[name="free_drink"]').forEach(radio => {
+                    radio.checked = false;
+                });
+                handleFreeDrinkChange();
+            }
+        });
+        </script>
         
         <!-- Statistiques du jour -->
         <div class="stats-grid" style="margin-bottom: 20px;">
