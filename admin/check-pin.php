@@ -26,3 +26,6 @@ $exists = $employeeModel->pinExists($pin, $exclude_id ?: null);
 
 echo json_encode(['exists' => $exists]);
 
+
+
+

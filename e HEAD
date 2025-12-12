@@ -1,0 +1,175 @@
+warning: in the working copy of 'admin/employees.php', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'admin/punches.php', LF will be replaced by CRLF the next time Git touches it
+[1mdiff --git a/admin/check-pin.php b/admin/check-pin.php[m
+[1mindex 80270fa..8cefc55 100644[m
+[1m--- a/admin/check-pin.php[m
+[1m+++ b/admin/check-pin.php[m
+[36m@@ -26,3 +26,5 @@[m [m$exists = $employeeModel->pinExists($pin, $exclude_id ?: null);[m
+ [m
+ echo json_encode(['exists' => $exists]);[m
+ [m
+[41m+[m
+[41m+[m
+[1mdiff --git a/admin/punches.php b/admin/punches.php[m
+[1mindex ea92528..d5c66e1 100644[m
+[1m--- a/admin/punches.php[m
+[1m+++ b/admin/punches.php[m
+[36m@@ -1,535 +1,535 @@[m
+[31m-<?php[m
+[31m-/**[m
+[31m- * GRAFIK - Gestion des pointages[m
+[31m- */[m
+[31m-[m
+[31m-require_once __DIR__ . '/../includes/config.php';[m
+[31m-require_once __DIR__ . '/../classes/Database.php';[m
+[31m-require_once __DIR__ . '/../classes/Admin.php';[m
+[31m-require_once __DIR__ . '/../classes/Employee.php';[m
+[31m-require_once __DIR__ . '/../classes/Punch.php';[m
+[31m-[m
+[31m-include 'header.php';[m
+[31m-[m
+[31m-$employeeModel = new Employee();[m
+[31m-$punchModel = new Punch();[m
+[31m-$message = '';[m
+[31m-$error = '';[m
+[31m-[m
+[31m-// Fonction pour arrondir au 1/4 d'heure supérieur (pour arrivée)[m
+[31m-function roundUpQuarter($datetime, $employee_type = null) {[m
+[31m-    $timestamp = strtotime($datetime);[m
+[31m-    $minutes = (int)date('i', $timestamp);[m
+[31m-    $hours = (int)date('H', $timestamp);[m
+[31m-    [m
+[31m-    // Règle spéciale pour les employés Bar[m
+[31m-    if ($employee_type === 'Bar') {[m
+[31m-        $time_in_minutes = $hours * 60 + $minutes;[m
+[31m-        $limit_1145 = 11 * 60 + 45; // 11:45 en minutes[m
+[31m-        [m
+[31m-        // Si avant 11:45, mettre 11:45[m
+[31m-        if ($time_in_minutes < $limit_1145) {[m
+[31m-            return date('Y-m-d H:i:s', mktime(11, 45, 0, date('m', $timestamp), date('d', $timestamp), date('Y', $timestamp)));[m
+[31m-        }[m
+[31m-        // Sinon, arrondir au quart supérieur normalement[m
+[31m-    }[m
+[31m-    [m
+[31m-    // Arrondir au quart supérieur[m
+[31m-    $rounded_minutes = ceil($minutes / 15) * 15;[m
+[31m-    if ($rounded_minutes >= 60) {[m
+[31m-        $hours++;[m
+[31m-        $rounded_minutes = 0;[m
+[31m-    }[m
+[31m-    [m
+[31m-    return date('Y-m-d H:i:s', mktime($hours, $rounded_minutes, 0, date('m', $timestamp), date('d', $timestamp), date('Y', $timestamp)));[m
+[31m-}[m
+[31m-[m
+[31m-// Fonction pour arrondir au 1/4 d'heure inférieur (pour départ)[m
+[31m-function roundDownQuarter($datetime) {[m
+[31m-    $timestamp = strtotime($datetime);[m
+[31m-    $minutes = (int)date('i', $timestamp);[m
+[31m-    $hours = (int)date('H', $timestamp);[m
+[31m-    [m
+[31m-    // Arrondir au quart inférieur[m
+[31m-    $rounded_minutes = floor($minutes / 15) * 15;[m
+[31m-    [m
+[31m-    return date('Y-m-d H:i:s', mktime($hours, $rounded_minutes, 0, date('m', $timestamp), date('d', $timestamp), date('Y', $timestamp)));[m
+[31m-}[m
+[31m-[m
+[31m-// Période sélectionnée[m
+[31m-$period_type = isset($_GET['period']) ? $_GET['period'] : 'day'; // day, week, month[m
+[31m-$selected_date = isset($_GET['date']) ? $_GET['date'] : date('Y-m-d');[m
+[31m-$selected_employee = isset($_GET['employee']) ? $_GET['employee'] : '';[m
+[31m-[m
+[31m-// Calculer les dates de début et fin selon la période[m
+[31m-$start_date = $selected_date;[m
+[31m-$end_date = $selected_date;[m
+[31m-[m
+[31m-if ($period_type === 'week') {[m
+[31m-    // Semaine : du lundi au dimanche[m
+[31m-    $day_of_week = date('w', strtotime($selected_date));[m
+[31m-    $monday_offset = ($day_of_week == 0) ? -6 : (1 - $day_of_week);[m
+[31m-    $start_date = date('Y-m-d', strtotime($selected_date . ' ' . $monday_offset . ' days'));[m
+[31m-    $end_date = date('Y-m-d', strtotime($start_date . ' +6 days'));[m
+[31m-} elseif ($period_type === 'month') {[m
+[31m-    // Mois : du 1er au dernier jour du mois[m
+[31m-    $start_date = date('Y-m-01', strtotime($selected_date));[m
+[31m-    $end_date = date('Y-m-t', strtotime($selected_date));[m
+[31m-}[m
+[31m-[m
+[31m-// Traiter les actions[m
+[31m-if ($_SERVER['REQUEST_METHOD'] === 'POST') {[m
+[31m-    $action = $_POST['action'] ?? '';[m
+[31m-    [m
+[31m-    if ($action === 'add_punch') {[m
+[31m-        $employee_id = trim($_POST['employee_id']); // Garder comme string pour Firebase[m
+[31m-        $punch_type = $_POST['punch_type'];[m
+[31m-        $punch_date = $_POST['punch_date'];[m
+[31m-        $punch_time = $_POST['punch_time'];[m
+[31m-        $punch_datetime = $punch_date . ' ' . $punch_time;[m
+[31m-        [m
+[31m-        try {[m
+[31m-            $punchModel->addManual($employee_id, $punch_type, $punch_datetime);[m
+[31m-            $message = 'Pointage ajouté avec succès';[m
+[31m-        } catch (Exception $e) {[m
+[31m-            $error = 'Erreur lors de l\'ajout du pointage : ' . $e->getMessage();[m
+[31m-        }[m
+[31m-    } elseif ($action === 'update_punch') {[m
+[31m-        $punch_id = trim($_POST['punch_id']); // Garder comme string pour Firebase[m
+[31m-        $punch_date = $_POST['punch_date'];[m
+[31m-        $punch_time = $_POST['punch_time'];[m
+[31m-        $punch_datetime = $punch_date . ' ' . $punch_time;[m
+[31m-        $boxes_count = isset($_POST['boxes_count']) && $_POST['boxes_count'] !== '' ? intval($_POST['boxes_count']) : null;[m
+[31m-        [m
+[31m-        $result = $punchModel->update($punch_id, $punch_datetime, $boxes_count);[m
+[31m-        if ($result) {[m
+[31m-            $message = 'Pointage modifié avec succès';[m
+[31m-        } else {[m
+[31m-            $error = 'Erreur lors de la modification du pointage';[m
+[31m-        }[m
+[31m-    } elseif ($action === 'delete_punch') {[m
+[31m-        $punch_id = trim($_POST['punch_id']); // Garder comme string pour Firebase[m
+[31m-        $result = $punchModel->delete($punch_id);[m
+[31m-        if ($result) {[m
+[31m-            $message = 'Pointage supprimé avec succès';[m
+[31m-        } else {[m
+[31m-            $error = 'Erreur lors de la suppression du pointage';[m
+[31m-        }[m
+[31m-    }[m
+[31m-}[m
+[31m-[m
+[31m-$employees = $employeeModel->getAll(true);[m
+[31m-[m
+[31m-// Récupérer les pointages selon la période et l'employé sélectionné[m
+[31m-$all_punches_by_employee = [];[m
+[31m-foreach ($employees as $emp) {[m
+[31m-    if ($selected_employee && $emp['id'] !== $selected_employee) {[m
+[31m-        continue;[m
+[31m-    }[m
+[31m-    $punches = $punchModel->getByEmployeeDateRange($emp['id'], $start_date, $end_date);[m
+[31m-    if (!empty($punches)) {[m
+[31m-        $all_punches_by_employee[$emp['id']] = [[m
+[31m-            'employee' => $emp,[m
+[31m-            'punches' => $punches[m
+[31m-        ];[m
+[31m-    }[m
+[31m-}[m
+[31m-[m
+[31m-// Calculer les heures réelles et arrondies par employé[m
+[31m-$hours_by_employee = [];[m
+[31m-foreach ($all_punches_by_employee as $emp_id => $data) {[m
+[31m-    $emp = $data['employee'];[m
+[31m-    $punches = $data['punches'];[m
+[31m-    [m
+[31m-    $real_hours = 0;[m
+[31m-    $rounded_hours = 0;[m
+[31m-    $in_time = null;[m
+[31m-    $in_time_rounded = null;[m
+[31m-    [m
+[31m-    $employee_type = $emp['employee_type'] ?? 'Autre';[m
+[31m-    [m
+[31m-    foreach ($punches as $punch) {[m
+[31m-        if ($punch['punch_type'] === 'in') {[m
+[31m-            // Si on a déjà un "in" en attente, on l'ignore (pointage orphelin)[m
+[31m-            if ($in_time !== null) {[m
+[31m-                // On ignore l'ancien "in" et on prend le nouveau[m
+[31m-            }[m
+[31m-            $in_time = strtotime($punch['punch_datetime']);[m
+[31m-            $in_time_rounded = strt
